@@ -374,8 +374,6 @@ a.pv:hover .pv-dir, a.pv:focus-visible .pv-dir { color: var(--accent); }
 .dlg p { margin: 0 0 20px; color: var(--muted); }
 .dlg-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .dlg-actions .btn { min-height: 44px; }
-.dlg-danger { background: #c62f3a; border-color: #c62f3a; color: #fff; }
-.dlg-danger:hover, .dlg-danger:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--bad-soft); }
 /* Code inside lens cards scrolls in its own box instead of stretching the card */
 #lens-cards .flip, #lens-cards .flip-inner, #lens-cards .flip-face { min-width: 0; }
 #lens-cards .flip-inner { grid-template-columns: minmax(0, 1fr); }
@@ -388,3 +386,6 @@ a.pv:hover .pv-dir, a.pv:focus-visible .pv-dir { color: var(--accent); }
 #lens-cards .flip { display: block; }
 #lens-cards .flip-inner { display: block; position: relative; height: 180px; min-height: 0; transition: transform .5s, height .3s ease; }
 #lens-cards .flip-face { position: absolute; top: 0; left: 0; right: 0; bottom: auto; min-height: 180px; }
+.dlg-actions .dlg-danger { background: #c62f3a; border-color: #c62f3a; color: #fff; box-shadow: none; }
+.dlg-actions .dlg-danger:hover { background: #a92530; border-color: #a92530; }
+.dlg-actions .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
