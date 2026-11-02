@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>The Agent Loop · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -119,6 +123,7 @@
 
     /* ---------- Builder's Lens ---------- */
     .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
     .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
   </style>
 </head>
@@ -471,7 +476,8 @@
     function renderFmt() {
       const f = FMT[fmt];
       $("fmt-in").innerHTML = hl(f.inp);
-      $("fmt-out").textContent = f.out;
+      $("fmt-out").innerHTML = `<code class="language-plaintext">${esc(f.out)}</code>`;
+      delete $("fmt-out").dataset.hl;
       $("fmt-why").innerHTML = f.why.map(w => `<li>${w}</li>`).join("");
       document.querySelectorAll("#fmt-seg [data-fmt]").forEach(b => b.classList.toggle("active", b.dataset.fmt === fmt));
     }
@@ -607,18 +613,42 @@
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["♻️ The loop itself", "agent loop", "<code>for (step = 1; step <= maxSteps; step++) { reply = await llm.complete(msgs, tools); if (!reply.toolCalls.length) return reply }</code> · pseudocode", "No step budget: one confused model can loop forever and burn tokens", "Script a model that always calls a tool: the loop must stop at the budget with a clear message"],
-      ["🧩 MCP tool → function", "adapter", "<code>{ name, description: title + desc + hints, parameters: tool.inputSchema }</code> · pseudocode", "Dropping the description or hints: the model then guesses what a tool does", "Print the adapted list next to <code>tools/list</code> and compare field by field"],
-      ["📦 Results for the model", "formatting", "<code>text = result.isError ? 'TOOL ERROR: ' + body : body</code>, then cap the length · pseudocode", "Hiding errors, or sending a huge result that crowds out the conversation", "Feed in an error and a 20,000-character result: both must arrive labelled and capped"],
-      ["🧠 Conversation memory", "history", "Keep the last N messages, moving the cut forward to a user message · pseudocode", "Cutting mid-turn leaves a tool call without its result, and the API rejects the next request", "Add turns past the limit: the history must always start at a user message"],
-      ["🔌 One provider interface", "providers", "<code>interface LlmProvider { complete(messages, tools, signal) }</code> · pseudocode", "Provider-specific types leaking into the loop make switching models a rewrite", "Swap in a second adapter: the loop code must not change"],
-      ["🎭 A scripted model", "testing", "<code>script = [callTools(...), say('...')]</code> · pseudocode", "Testing only with a real LLM: slow, costly and non-deterministic", "Run the full loop in CI with the script and no API key"],
+      ["♻️ The loop itself", "agent loop", "Pseudocode", `for (let i = 0; i < maxSteps; i++) {
+  const reply = await llm.complete(
+    msgs, tools,
+  );
+  if (!reply.toolCalls.length) {
+    return reply;
+  }
+  // run each tool call, append results
+}`, "No step budget: one confused model can loop forever and burn tokens", "Script a model that always calls a tool: the loop must stop at the budget with a clear message"],
+      ["🧩 MCP tool → function", "adapter", "Pseudocode", `const fn = {
+  name,
+  description: title + desc + hints,
+  parameters: tool.inputSchema,
+};`, "Dropping the description or hints: the model then guesses what a tool does", "Print the adapted list next to <code>tools/list</code> and compare field by field"],
+      ["📦 Results for the model", "formatting", "Pseudocode · then cap the length", `let text = result.isError
+  ? "TOOL ERROR: " + body
+  : body;
+text = text.slice(0, MAX_CHARS);`, "Hiding errors, or sending a huge result that crowds out the conversation", "Feed in an error and a 20,000-character result: both must arrive labelled and capped"],
+      ["🧠 Conversation memory", "history", "Pseudocode · keep the last N, cut at a user message", `let start = Math.max(0, msgs.length - N);
+while (msgs[start]?.role !== "user") {
+  start++;
+}
+history = msgs.slice(start);`, "Cutting mid-turn leaves a tool call without its result, and the API rejects the next request", "Add turns past the limit: the history must always start at a user message"],
+      ["🔌 One provider interface", "providers", "Pseudocode", `interface LlmProvider {
+  complete(messages, tools, signal);
+}`, "Provider-specific types leaking into the loop make switching models a rewrite", "Swap in a second adapter: the loop code must not change"],
+      ["🎭 A scripted model", "testing", "Pseudocode", `const script = [
+  callTools(...),
+  say("..."),
+];`, "Testing only with a real LLM: slow, costly and non-deterministic", "Run the full loop in CI with the script and no API key"],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, tag, code, trap, check]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, tag, cap, code, trap, check]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="file">${tag}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="cap">${cap}</div><pre><code class="language-typescript">${esc(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${trap}</p>
           <div class="lbl">Verify</div><p>${check}</p>
         </div>
@@ -626,6 +656,6 @@
 
     initChapter(8);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

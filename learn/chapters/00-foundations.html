@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Foundations · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -108,6 +112,7 @@
     .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
     .flip-back .lbl:first-child { margin-top: 0; }
     .flip-back p { margin: 2px 0; font-size: 13px; overflow-wrap: anywhere; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
   </style>
 </head>
 <body>
@@ -268,14 +273,17 @@
       <div class="card run">
         <h3>▶ Try it for real</h3>
         <div class="note">Open a real MCP server and see its tools, resources and prompts. Needs Node 22.19+.</div>
-<pre><span class="c"># the official MCP Inspector, in your browser</span>
+<pre><code class="language-bash"># the official MCP Inspector, in your browser
 npx @modelcontextprotocol/inspector
 
-<span class="c"># point it at an official reference server</span>
-npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-filesystem ~/Desktop
+# point it at an official reference server
+npx -y @modelcontextprotocol/inspector \
+  npx @modelcontextprotocol/server-filesystem ~/Desktop
 
-<span class="c"># or at a remote server you built</span>
-npx @modelcontextprotocol/inspector --server-url https://your-host.example/mcp --transport http --protocol-era auto</pre>
+# or at a remote server you built
+npx @modelcontextprotocol/inspector \
+  --server-url https://your-host.example/mcp \
+  --transport http --protocol-era auto</code></pre>
         <div class="note" style="margin-top:10px">Next steps: <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server" target="_blank" rel="noopener">Build a server</a> · <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-client" target="_blank" rel="noopener">Build a client</a> · <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">Inspector docs</a></div>
       </div>
     </section>
@@ -435,18 +443,52 @@ npx @modelcontextprotocol/inspector --server-url https://your-host.example/mcp -
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["Create a server", "TypeScript SDK: <code>const server = new McpServer({ name: \"store\", version: \"1.0.0\" });</code>", "A vague or duplicated name. Hosts show it to users and it lands in every log.", "Run it under the Inspector and check the server info it reports."],
-      ["Expose a tool", "TypeScript SDK: <code>server.registerTool(\"get_stock_level\", { description, inputSchema: z.object({ productId: z.number() }) }, async ({ productId }) =&gt; ({ content: [...] }));</code>", "A one-word description. The model picks tools by reading it, so say what it does and when to use it.", "Inspector → Tools: list it, then call it with a real and a bad <code>productId</code>."],
-      ["Expose a resource", "Pseudocode: <code>registerResource(\"store-info\", \"shop://store/info\", read)</code> returning <code>{ contents: [{ uri, mimeType, text }] }</code>", "Hiding actions in a resource. Reading must never change anything.", "Inspector → Resources: read <code>shop://store/info</code> and check the MIME type."],
-      ["Offer a prompt", "Pseudocode: <code>registerPrompt(\"draft_customer_reply\", { arguments }, render)</code> returning a list of messages", "Running prompts on your own. Prompts are user-controlled: the user picks one.", "Inspector → Prompts: get it with arguments and read the messages it returns."],
-      ["Connect a client", "TypeScript SDK: <code>const client = new Client({ name: \"shop-assistant\", version: \"1.0.0\" }); await client.connect(transport); await client.listTools();</code>", "Sharing one client between servers. Each server gets its own client.", "Log the tool names after <code>listTools()</code>. They should match what the Inspector shows."],
-      ["Keep the human in charge", "Pseudocode: <code>if (isWrite(tool) &amp;&amp; !(await askUser(call))) return declined();</code> before <code>client.callTool(...)</code>", "Treating the model's tool call as permission. The host must ask.", "Ask the assistant to change stock. It must show the call and wait for a yes."],
+      ["Create a server", "TypeScript SDK", `const server = new McpServer({
+  name: "store",
+  version: "1.0.0",
+});`, "A vague or duplicated name. Hosts show it to users and it lands in every log.", "Run it under the Inspector and check the server info it reports."],
+      ["Expose a tool", "TypeScript SDK", `server.registerTool(
+  "get_stock_level",
+  {
+    description,
+    inputSchema: z.object({
+      productId: z.number(),
+    }),
+  },
+  async ({ productId }) => ({
+    content: [/* … */],
+  }),
+);`, "A one-word description. The model picks tools by reading it, so say what it does and when to use it.", "Inspector → Tools: list it, then call it with a real and a bad <code>productId</code>."],
+      ["Expose a resource", "Pseudocode", `registerResource(
+  "store-info",
+  "shop://store/info",
+  read,
+);
+// read returns:
+// { contents: [{ uri, mimeType, text }] }`, "Hiding actions in a resource. Reading must never change anything.", "Inspector → Resources: read <code>shop://store/info</code> and check the MIME type."],
+      ["Offer a prompt", "Pseudocode", `registerPrompt(
+  "draft_customer_reply",
+  { arguments },
+  render,
+);
+// render returns a list of messages`, "Running prompts on your own. Prompts are user-controlled: the user picks one.", "Inspector → Prompts: get it with arguments and read the messages it returns."],
+      ["Connect a client", "TypeScript SDK", `const client = new Client({
+  name: "shop-assistant",
+  version: "1.0.0",
+});
+await client.connect(transport);
+await client.listTools();`, "Sharing one client between servers. Each server gets its own client.", "Log the tool names after <code>listTools()</code>. They should match what the Inspector shows."],
+      ["Keep the human in charge", "Pseudocode", `// before client.callTool(...)
+if (isWrite(tool) && !(await askUser(call))) {
+  return declined();
+}`, "Treating the model's tool call as permission. The host must ask.", "Ask the assistant to change stock. It must show the call and wait for a yes."],
     ];
-    $("lens-cards").innerHTML = LENS.map(([q, code, trap, check]) => `
+    const escH = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    $("lens-cards").innerHTML = LENS.map(([q, cap, code, trap, check]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${q}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="cap">${cap}</div><pre><code class="language-typescript">${escH(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${trap}</p>
           <div class="lbl">Verify</div><p>${check}</p>
         </div>
@@ -454,6 +496,6 @@ npx @modelcontextprotocol/inspector --server-url https://your-host.example/mcp -
 
     initChapter(0);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

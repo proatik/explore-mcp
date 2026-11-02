@@ -180,7 +180,11 @@ async function navigate(url, push = true) {
 document.addEventListener("click", (e) => {
   // Flip cards: click to toggle
   const flip = e.target.closest(".flip");
-  if (flip) flip.classList.toggle("flipped");
+  if (flip) {
+    const toBack = flip.classList.toggle("flipped");
+    // Grow at once when showing the longer back; shrink once the back has turned away
+    if (flip.closest("#lens-cards")) setTimeout(() => sizeLensCard(flip), toBack ? 0 : 260);
+  }
 
   const a = e.target.closest("a[href]");
   if (!a || a.target || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
@@ -198,6 +202,51 @@ document.addEventListener("click", (e) => {
     if (displayUrl(url.href) !== location.href) navigate(url.href);
   }
 });
+
+/* ===================== Confirm dialog ===================== */
+
+// Styled replacement for window.confirm; resolves true only on the confirm button
+function confirmDialog({ title, body, confirmLabel = "Confirm", cancelLabel = "Cancel" }) {
+  return new Promise((resolve) => {
+    const prevFocus = document.activeElement;
+    const wrap = document.createElement("div");
+    wrap.className = "dlg-backdrop";
+    wrap.innerHTML = `
+      <div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-body">
+        <h3 id="dlg-title">${title}</h3>
+        <p id="dlg-body">${body}</p>
+        <div class="dlg-actions">
+          <button class="btn" data-dlg="cancel">${cancelLabel}</button>
+          <button class="btn dlg-danger" data-dlg="ok">${confirmLabel}</button>
+        </div>
+      </div>`;
+    const close = (ok) => {
+      document.removeEventListener("keydown", onKey);
+      wrap.classList.remove("open");
+      setTimeout(() => wrap.remove(), 150);
+      prevFocus?.focus?.();
+      resolve(ok);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+      if (e.key === "Tab") {
+        const btns = [...wrap.querySelectorAll("button")];
+        const i = btns.indexOf(document.activeElement);
+        e.preventDefault();
+        btns[(i + (e.shiftKey ? btns.length - 1 : 1)) % btns.length].focus();
+      }
+    };
+    wrap.addEventListener("click", (e) => {
+      if (e.target === wrap) close(false);
+      const b = e.target.closest("[data-dlg]");
+      if (b) close(b.dataset.dlg === "ok");
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(wrap);
+    requestAnimationFrame(() => wrap.classList.add("open"));
+    wrap.querySelector('[data-dlg="cancel"]').focus();
+  });
+}
 
 /* ===================== Footer ===================== */
 
@@ -230,9 +279,49 @@ function renderFooter() {
 }
 renderFooter();
 
+/* ===================== Code highlighting ===================== */
+
+// Plain-text <pre> blocks get highlight.js colours; blocks with their own markup are left alone
+const guessLang = (t) =>
+  /^\s*[{[]/.test(t) ? "json"
+  : /^\s*(HTTP\/|GET |POST |WWW-)/.test(t) ? "http"
+  : /^\s*(npx |curl |npm |node |docker |git |cd |export |\$ |# )/m.test(t) ? "bash"
+  : "typescript";
+
+function highlightCode() {
+  if (!window.hljs) return;
+  document.querySelectorAll("#app pre:not([data-hl])").forEach((pre) => {
+    const only = pre.children.length === 0 || (pre.children.length === 1 && pre.firstElementChild.tagName === "CODE" && !pre.firstElementChild.children.length);
+    if (!only) { pre.dataset.hl = "skip"; return; }
+    const text = pre.textContent.replace(/^\n+|\s+$/g, "");
+    const cls = (pre.querySelector("code") || pre).className.match(/language-(\w+)/);
+    const guess = cls && hljs.getLanguage(cls[1]) ? cls[1] : guessLang(text);
+    const lang = hljs.getLanguage(guess) ? guess : "plaintext";
+    pre.innerHTML = `<code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code>`;
+    pre.dataset.hl = lang;
+  });
+}
+
+// Each lens card is as tall as the face you're looking at
+function sizeLensCard(flip) {
+  const face = flip.querySelector(flip.classList.contains("flipped") ? ".flip-back" : ".flip-face:not(.flip-back)");
+  if (face) flip.querySelector(".flip-inner").style.height = Math.max(180, face.offsetHeight) + "px";
+}
+const sizeLensCards = () => document.querySelectorAll("#lens-cards .flip").forEach(sizeLensCard);
+addEventListener("resize", sizeLensCards);
+
+let hlQueued = false;
+new MutationObserver(() => {
+  if (hlQueued) return;
+  hlQueued = true;
+  requestAnimationFrame(() => { hlQueued = false; highlightCode(); sizeLensCards(); });
+}).observe(document.body, { childList: true, subtree: true });
+
 // Browser back / forward
 window.addEventListener("popstate", () => navigate(fileUrl(location.href), false));
 
 if (displayUrl(location.href) !== location.href) history.replaceState({}, "", displayUrl(location.href));
 
 runPageScripts(document);
+highlightCode();
+sizeLensCards();

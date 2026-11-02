@@ -3,10 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Testing & Shipping · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
+    .flip-back .code-cap { font-size: 11.5px; color: var(--muted); margin: 0 0 2px; }
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
     .seg .btn { min-height: 44px; }
@@ -548,36 +553,36 @@ docker compose run --rm smoke-client</pre></div>
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["🧪 A real stack per test", "Test setup",
-        "<code>const stack = await startStack({ port: 0 })</code> (pseudocode): mock store + real server on a free port",
+      ["🧪 A real stack per test", "Test setup", "Pseudocode · mock store + real server on a free port", "typescript",
+        "const stack = await startStack({\n  port: 0,\n});\n// ...run the test...\nawait stack.stop();",
         "Shared ports or shared state between tests make them flaky.",
         "Run the suite twice in parallel. It must pass both times."],
-      ["🤖 A model you can script", "Agent tests",
-        "<code>scriptedModel([callTools(…), say('…')])</code> (pseudocode)",
+      ["🤖 A model you can script", "Agent tests", "Pseudocode", "typescript",
+        "const llm = scriptedModel([\n  callTools({\n    name: 'get_stock_level',\n    args: { productId: 101 },\n  }),\n  say('Ceramic Pour-Over Set: 3 left.'),\n]);",
         "A script that silently returns nothing when it runs out.",
         "Delete one step from a script. The test must fail loudly."],
-      ["🙈 Redacting logger", "Logging",
-        "<code>log.info('tool call', redact({ headers, args }))</code> (pseudocode)",
+      ["🙈 Redacting logger", "Logging", "Pseudocode", "typescript",
+        "log.info(\n  'tool call',\n  redact({ headers, args })\n);",
         "Logging whole request objects, Authorization header included.",
         "Send a request with a fake token, then search the logs: it must not appear."],
-      ["🧵 Request IDs", "Tracing",
-        "<code>const id = req.headers['x-request-id'] ?? randomUUID()</code> then add it to every log line",
+      ["🧵 Request IDs", "Tracing", "Node.js · then add it to every log line", "typescript",
+        "import { randomUUID } from 'node:crypto';\n\nconst id =\n  req.headers['x-request-id'] ??\n  randomUUID();",
         "Trusting the header blindly. Check its length and characters first.",
         "<code>curl -i -H \"x-request-id: demo-1\" http://localhost:3000/healthz</code> echoes the ID."],
-      ["🩺 Health check", "Dockerfile",
-        "<code>HEALTHCHECK CMD node -e \"fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1))\"</code>",
+      ["🩺 Health check", "Dockerfile", "Dockerfile (Node 22 has global fetch)", "bash",
+        "HEALTHCHECK --interval=10s --timeout=3s \\\n  CMD node -e \"fetch('http://localhost:3000/healthz')\\\n    .then(r =&gt; process.exit(r.ok ? 0 : 1))\\\n    .catch(() =&gt; process.exit(1))\"",
         "A health route that needs auth or calls the upstream store, so it flaps.",
         "<code>docker compose up --wait</code> turns healthy, then stops when you break the route."],
-      ["🚦 The CI gate", "CI config",
-        "<code>jobs: test → docker (needs: test)</code>: install from the lockfile, typecheck, test, build",
+      ["🚦 The CI gate", "CI config", "GitHub Actions example · docker waits for test", "yaml",
+        "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci\n      - run: npm run typecheck\n      - run: npm test\n      - run: npm run build\n  docker:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: docker compose up -d --build --wait",
         "Skipping the frozen lockfile, so CI tests different versions than you did.",
         "Open a pull request with a type error. CI must turn red before any image builds."],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, sub, code, watch, verify]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, sub, cap, lang, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="file">${sub}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div>${cap ? `<div class="code-cap">${cap}</div>` : ""}<pre><code class="language-${lang}">${code}</code></pre>
           <div class="lbl">Watch out</div><p>${watch}</p>
           <div class="lbl">Verify</div><p>${verify}</p>
         </div>
@@ -585,6 +590,6 @@ docker compose run --rm smoke-client</pre></div>
 
     initChapter(12);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

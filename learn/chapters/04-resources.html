@@ -3,10 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Resources · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
+    #lens-cards .code-cap { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 2px; }
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
     .seg .btn { min-height: 44px; }
@@ -407,16 +412,16 @@
         <h3>▶ Try it for real</h3>
         <p class="note">Use the official MCP Inspector (Node 22.19+) with <b>Everything</b>, the official reference server that ships resources, templates, prompts and tools.</p>
         <div class="steps">
-          <div class="step"><span class="n">1 · OPEN THE INSPECTOR</span><pre class="json">npx @modelcontextprotocol/inspector \
-  npx -y @modelcontextprotocol/server-everything</pre></div>
-          <div class="step"><span class="n">2 · LIST TEMPLATES (CLI)</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+          <div class="step"><span class="n">1 · OPEN THE INSPECTOR</span><pre><code class="language-bash">npx @modelcontextprotocol/inspector \
+  npx -y @modelcontextprotocol/server-everything</code></pre></div>
+          <div class="step"><span class="n">2 · LIST TEMPLATES (CLI)</span><pre><code class="language-bash">npx @modelcontextprotocol/inspector --cli \
   npx -y @modelcontextprotocol/server-everything \
-  --method resources/templates/list</pre></div>
-          <div class="step"><span class="n">3 · LIST, THEN READ ONE</span><pre class="json">… --method resources/list
-… --method resources/read --uri &lt;a uri from the list&gt;</pre></div>
-          <div class="step"><span class="n">4 · YOUR OWN SERVER</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+  --method resources/templates/list</code></pre></div>
+          <div class="step"><span class="n">3 · LIST, THEN READ ONE</span><pre><code class="language-bash">… --method resources/list
+… --method resources/read --uri &lt;a uri from the list&gt;</code></pre></div>
+          <div class="step"><span class="n">4 · YOUR OWN SERVER</span><pre><code class="language-bash">npx @modelcontextprotocol/inspector --cli \
   https://store.example.com/mcp --transport http --protocol-era auto \
-  --method resources/list</pre></div>
+  --method resources/list</code></pre></div>
         </div>
         <p class="note" style="margin-top:10px">Subscriptions need a connection that stays open: watch updates in the web Inspector, not in one-shot CLI runs. Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">modelcontextprotocol.io/docs/tools/inspector</a>.</p>
       </div>
@@ -678,19 +683,20 @@ values: ${esc(shown)}`;
     renderBuild();
 
     /* ---------- Builder's Lens ---------- */
+    const escCode = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const LENS = [
-      ["📌 A direct resource", "<code>server.registerResource('store-info', 'shop://store/info', { title, mimeType }, async uri =&gt; ({ contents: [{ uri: uri.href, text }] }))</code>", "Keep it read-only. Anything that changes data belongs in a tool.", "Inspector CLI: <code>--method resources/list</code>, then <code>resources/read --uri shop://store/info</code>"],
-      ["🧩 A resource template", "<code>new ResourceTemplate('shop://products/{productId}', { list: async () =&gt; ({ resources }) })</code>", "<code>list</code> is required. Pass <code>undefined</code> for things nobody should browse, like orders.", "<code>--method resources/templates/list</code> shows the template"],
-      ["⌨️ Argument completion", "Pseudocode: <code>complete: { productId: prefix =&gt; ids.filter(id =&gt; id.startsWith(prefix)).slice(0, 20) }</code>", "Cap and time-box suggestions. Never suggest IDs the caller can't read.", "Send <code>completion/complete</code> with <code>ref/resource</code> and a partial value: at most 100 values come back"],
-      ["🔒 Read with a scope check", "Pseudocode: <code>if (!scopes.has('products:read')) throw forbidden(); const p = await db.product(id); if (!p) throw notFound(uri);</code>", "Unknown URI: a protocol error (<code>-32602</code>), never empty <code>contents</code>.", "<code>--method resources/read --uri shop://products/999</code> must fail"],
-      ["📣 Publish a change", "<code>await server.server.sendResourceUpdated({ uri: 'shop://products/101' })</code>", "Send it only to clients that subscribed. It carries the URI, not the new data.", "Subscribe in the web Inspector, change stock, watch the notification arrive"],
-      ["👂 Subscribe from a client", "Pseudocode: 2026-07-28 → one <code>subscriptions/listen</code> with <code>resourceSubscriptions: [uri]</code>. Legacy → <code>resources/subscribe</code> per URI.", "Re-read after every update. A cached copy is stale the moment it arrives.", "Switch the Inspector's protocol era (modern vs legacy) and compare"],
+      ["📌 A direct resource",{"cap":"TypeScript SDK","lang":"typescript","src":"server.registerResource(\n  'store-info',\n  'shop://store/info',\n  { title, mimeType },\n  async (uri) => ({\n    contents: [{ uri: uri.href, text }],\n  }),\n);"},"Keep it read-only. Anything that changes data belongs in a tool.","Inspector CLI: <code>--method resources/list</code>, then <code>resources/read --uri shop://store/info</code>"],
+      ["🧩 A resource template",{"cap":"TypeScript SDK","lang":"typescript","src":"new ResourceTemplate(\n  'shop://products/{productId}',\n  {\n    list: async () => ({ resources }),\n  },\n);"},"<code>list</code> is required. Pass <code>undefined</code> for things nobody should browse, like orders.","<code>--method resources/templates/list</code> shows the template"],
+      ["⌨️ Argument completion",{"cap":"Pseudocode","lang":"typescript","src":"complete: {\n  productId: (prefix) =>\n    ids\n      .filter((id) => id.startsWith(prefix))\n      .slice(0, 20),\n}"},"Cap and time-box suggestions. Never suggest IDs the caller can't read.","Send <code>completion/complete</code> with <code>ref/resource</code> and a partial value: at most 100 values come back"],
+      ["🔒 Read with a scope check",{"cap":"Pseudocode","lang":"typescript","src":"if (!scopes.has('products:read')) {\n  throw forbidden();\n}\nconst p = await db.product(id);\nif (!p) throw notFound(uri);"},"Unknown URI: a protocol error (<code>-32602</code>), never empty <code>contents</code>.","<code>--method resources/read --uri shop://products/999</code> must fail"],
+      ["📣 Publish a change",{"cap":"TypeScript SDK","lang":"typescript","src":"await server.server.sendResourceUpdated({\n  uri: 'shop://products/101',\n});"},"Send it only to clients that subscribed. It carries the URI, not the new data.","Subscribe in the web Inspector, change stock, watch the notification arrive"],
+      ["👂 Subscribe from a client",{"cap":"Pseudocode","lang":"typescript","src":"// 2026-07-28: one stream for many URIs\nrequest('subscriptions/listen', {\n  resourceSubscriptions: [uri],\n});\n\n// Legacy: one call per URI\nrequest('resources/subscribe', { uri });"},"Re-read after every update. A cached copy is stale the moment it arrives.","Switch the Inspector's protocol era (modern vs legacy) and compare"],
     ];
     $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="code-cap">${code.cap}</div><pre><code class="language-${code.lang}">${escCode(code.src)}</code></pre>
           <div class="lbl">Watch out</div><p>${watch}</p>
           <div class="lbl">Verify</div><p>${verify}</p>
         </div>
@@ -698,6 +704,6 @@ values: ${esc(shown)}`;
 
     initChapter(4);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

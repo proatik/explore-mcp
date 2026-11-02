@@ -320,14 +320,71 @@ a.pv:hover .pv-dir, a.pv:focus-visible .pv-dir { color: var(--accent); }
 #lens-cards .flip-back .lbl:first-child { margin-top: 0; }
 #lens-cards .flip-back p { font-size: 14px; margin: 2px 0; }
 
-/* Completed chapter button and map reset */
+/* Completed chapter button */
 #mark-done.is-done { background: var(--good-soft); border-color: var(--good); color: var(--good); }
-.jm-reset {
-  font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
-  background: none; border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; min-height: 40px;
-}
-.jm-reset:hover, .jm-reset:focus-visible { outline: none; border-color: var(--bad); color: var(--bad); }
 .jm-legend { align-items: center; }
 
 /* "Try it for real" card heading: same in every chapter */
 #try .run h3 { font-size: 18px; font-weight: 800; line-height: 1.3; margin: 0 0 8px; letter-spacing: 0; text-transform: none; color: var(--text); }
+
+/* Code: JetBrains Mono + Monokai colours (same as the Go learning platform), never wrapped */
+:root { --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace; --code-bg: #272822; --code-fg: #f8f8f2; }
+#app pre, #app code { font-family: var(--mono); }
+#app pre[data-hl]:not([data-hl="skip"]) {
+  background: var(--code-bg) !important; color: var(--code-fg) !important; border: 0 !important;
+  border-radius: 12px; padding: 12px 14px !important; margin: 6px 0;
+  white-space: pre !important; overflow-wrap: normal !important; word-break: normal !important;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  font-size: 12.5px; line-height: 1.6; tab-size: 2; text-align: left;
+}
+#app pre[data-hl] code { font: inherit; white-space: pre; background: none; padding: 0; color: inherit; }
+.hljs { background: transparent !important; color: #f8f8f2; }
+.hljs-keyword, .hljs-literal, .hljs-built_in, .hljs-operator, .hljs-meta .hljs-keyword { color: #f92672; }
+.hljs-type, .hljs-class .hljs-title { color: #66d9ef; font-style: italic; }
+.hljs-title, .hljs-title.function_, .hljs-attr, .hljs-attribute { color: #a6e22e; }
+.hljs-string, .hljs-meta .hljs-string { color: #e6db74; }
+.hljs-number, .hljs-char.escape_, .hljs-subst { color: #ae81ff; }
+.hljs-comment { color: #75715e; font-style: italic; }
+.hljs-variable, .hljs-params, .hljs-property { color: #f8f8f2; }
+.language-bash .hljs-built_in { color: #a6e22e; }
+
+/* Builder's Lens: two wider cards per row so code has room */
+#lens-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 640px) { #lens-cards { grid-template-columns: 1fr; } }
+#lens-cards .flip-back pre { min-width: 0; max-width: 100%; }
+
+/* Reset at the end of the trail + styled confirm dialog */
+.jm-restart { text-align: center; color: var(--muted); font-size: 14px; margin: 8px auto 40px; }
+.jm-restart button {
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer;
+  background: none; border: 1px solid var(--line); border-radius: 999px; padding: 0 18px; min-height: 44px; margin-top: 10px;
+}
+.jm-restart button:hover, .jm-restart button:focus-visible { outline: none; color: var(--bad); border-color: var(--bad); }
+.dlg-backdrop {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: rgba(10, 10, 14, .6); backdrop-filter: blur(4px); opacity: 0; transition: opacity .15s;
+}
+.dlg-backdrop.open { opacity: 1; }
+.dlg {
+  width: min(420px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  padding: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); transform: translateY(8px); transition: transform .15s;
+}
+.dlg-backdrop.open .dlg { transform: none; }
+.dlg h3 { margin: 0 0 8px; font-size: 20px; }
+.dlg p { margin: 0 0 20px; color: var(--muted); }
+.dlg-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.dlg-actions .btn { min-height: 44px; }
+.dlg-danger { background: #c62f3a; border-color: #c62f3a; color: #fff; }
+.dlg-danger:hover, .dlg-danger:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--bad-soft); }
+/* Code inside lens cards scrolls in its own box instead of stretching the card */
+#lens-cards .flip, #lens-cards .flip-inner, #lens-cards .flip-face { min-width: 0; }
+#lens-cards .flip-inner { grid-template-columns: minmax(0, 1fr); }
+/* Show operators exactly as typed (no ligatures like ≢ or ⇒) */
+#app pre, #app code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+/* Wide code never stretches its container; lens cards with code may each keep their own height */
+#app .card, #app li, #app pre { min-width: 0; }
+#lens-cards { align-items: start; }
+/* Lens cards size to the visible face: faces are layered, the card height follows the one on show */
+#lens-cards .flip { display: block; }
+#lens-cards .flip-inner { display: block; position: relative; height: 180px; min-height: 0; transition: transform .5s, height .3s ease; }
+#lens-cards .flip-face { position: absolute; top: 0; left: 0; right: 0; bottom: auto; min-height: 180px; }

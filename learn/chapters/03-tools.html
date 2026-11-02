@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Tools · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     :root { --t3-num: #b0700a; }
@@ -164,6 +168,7 @@
     .flip-back .lbl:first-child { margin-top: 0; }
     .flip-back p { margin: 2px 0; font-size: 13.5px; }
     .flip-back .mono { overflow-wrap: anywhere; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
   </style>
 </head>
 <body>
@@ -347,14 +352,8 @@
       if (Array.isArray(v)) return "[\n" + v.map((x) => pad + fmt(x, pad)).join(",\n") + "\n" + ind + "]";
       return "{\n" + Object.entries(v).map(([k, x]) => pad + JSON.stringify(k) + ": " + fmt(x, pad)).join(",\n") + "\n" + ind + "}";
     }
-    function hl(v) {
-      const s = escHtml(typeof v === "string" ? v : fmt(v));
-      return s.replace(/("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?/g, (m, str, colon, kw) => {
-        if (str) return colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`;
-        if (kw) return `<span class="b">${m}</span>`;
-        return `<span class="n">${m}</span>`;
-      });
-    }
+    // plain text: the shared highlighter colours it
+    const hl = (v) => escHtml(typeof v === "string" ? v : fmt(v));
     const list = (a) => `<ul class="bullets">${a.map((x) => `<li>${x}</li>`).join("")}</ul>`;
 
     /* ---------- Explore ---------- */
@@ -405,6 +404,7 @@
     function renderEx() {
       const e = EX[exMode];
       [...$("ex-seg").children].forEach((b) => b.classList.toggle("active", +b.dataset.ex === exMode));
+      $("ex-def").removeAttribute("data-hl");
       $("ex-def").innerHTML = hl(e.def);
       $("ex-notes").innerHTML = e.notes.map((n) => `<li>${n}</li>`).join("");
       $("ex-trace").innerHTML = e.trace.map(([who, lbl, body]) => `
@@ -488,6 +488,7 @@
       $("res-seg").innerHTML = RES.map((r, i) => `<button class="btn ${i === resActive ? "active" : ""}" data-r="${i}">${r.tab}</button>`).join("");
       const r = RES[resActive];
       $("res-call").textContent = r.call;
+      $("res-json").removeAttribute("data-hl");
       $("res-json").innerHTML = hl(r.json);
       $("res-info").innerHTML = r.info.map(([h, a]) => `<div><h4>${h}</h4>${list(a)}</div>`).join("");
     }
@@ -631,45 +632,91 @@
     $("tg-reset").onclick = () => { tPick = TOOLS.map(() => null); tChecked = false; $("tg-msg").textContent = ""; renderTools(); };
     renderTools();
 
-    $("run-cmds").innerHTML = [
-      "<span class=\"c\"># browse a server's tools in the web Inspector</span>",
-      "npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto",
+    $("run-cmds").innerHTML = escHtml([
+      "# browse a server's tools in the web Inspector",
+      "npx @modelcontextprotocol/inspector \\",
+      "  --server-url https://store.example.com/mcp \\",
+      "  --transport http --protocol-era auto",
       "",
-      "<span class=\"c\"># or script it with the CLI</span>",
-      "npx @modelcontextprotocol/inspector --cli https://store.example.com/mcp --transport http --protocol-era auto --method tools/list",
-      "npx @modelcontextprotocol/inspector --cli https://store.example.com/mcp --transport http --protocol-era auto \\",
-      "  --method tools/call --tool-name get_product --tool-arg productId=101",
+      "# or script it with the CLI",
+      "npx @modelcontextprotocol/inspector --cli \\",
+      "  https://store.example.com/mcp \\",
+      "  --transport http --protocol-era auto \\",
+      "  --method tools/list",
       "",
-      "<span class=\"c\"># a server you're building locally</span>",
-      "npx @modelcontextprotocol/inspector node path/to/server/index.js"
-    ].join("\n");
+      "npx @modelcontextprotocol/inspector --cli \\",
+      "  https://store.example.com/mcp \\",
+      "  --transport http --protocol-era auto \\",
+      "  --method tools/call --tool-name get_product \\",
+      "  --tool-arg productId=101",
+      "",
+      "# a server you're building locally",
+      "npx @modelcontextprotocol/inspector \\",
+      "  node path/to/server/index.js"
+    ].join("\n"));
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["🧾 Register a tool", "server.registerTool(\"update_stock\", { title, description, inputSchema, outputSchema, annotations }, handler)  // TypeScript SDK style",
+      ["🧾 Register a tool", "TypeScript SDK style", `server.registerTool(
+  "update_stock",
+  {
+    title,
+    description,
+    inputSchema,
+    outputSchema,
+    annotations,
+  },
+  handler,
+);`,
         "The name, description and schemas are all the model sees. Write them for a reader with no other context.",
         "Open the Inspector's Tools tab and read your tool exactly as a model would."],
-      ["📏 Bound every input", "quantity: z.number().int().min(0).max(100000)  // Zod",
+      ["📏 Bound every input", "Zod", `quantity: z
+  .number()
+  .int()
+  .min(0)
+  .max(100000),`,
         "Unbounded strings and numbers let the model send anything, and your handler has to guess.",
         "Call get_product with productId -1 and expect a validation error before any logic runs."],
-      ["📦 Return text and data", "return { content: [{ type: \"text\", text: summary }], structuredContent: data }",
+      ["📦 Return text and data", "Tool handler returns", `return {
+  content: [{ type: "text", text: summary }],
+  structuredContent: data,
+};`,
         "If you declare an outputSchema, structuredContent must match it. Keep the text copy for text-only clients.",
         "Call get_product for 101 and compare the text block with the structured data."],
-      ["🚫 Fail with a tool error", "return { isError: true, content: [{ type: \"text\", text: \"NOT_FOUND: product 999999\" }] }",
+      ["🚫 Fail with a tool error", "Tool handler returns", `return {
+  isError: true,
+  content: [{
+    type: "text",
+    text: "NOT_FOUND: product 999999",
+  }],
+};`,
         "Never return a success whose text says \"error\". Mark failures with isError and a stable code.",
         "Call get_product for 999999 and check the result is marked isError."],
-      ["🛡️ Guard every handler", "withGuard(handler): check scope → run → map errors → log one line  // pseudocode",
+      ["🛡️ Guard every handler", "Pseudocode", `const withGuard = (handler) => async (args, ctx) => {
+  checkScope(ctx);
+  try {
+    return await handler(args, ctx);
+  } catch (err) {
+    return mapError(err); // e.g. INTERNAL_ERROR
+  } finally {
+    logOneLine(ctx);
+  }
+};`,
         "Unexpected exceptions should become a generic INTERNAL_ERROR. Keep the details in your logs, not the reply.",
         "Point the backend at a wrong URL, call any tool, and expect one clean error plus one log line."],
-      ["⚖️ Hints vs approval", "level = max(hostRule(tool), levelFromHints(tool.annotations))  // pseudocode",
+      ["⚖️ Hints vs approval", "Pseudocode", `// hints may raise the level, never lower it
+const level = max(
+  hostRule(tool),
+  levelFromHints(tool.annotations),
+);`,
         "Annotations may raise the approval level, never lower it. A lying server must not get a free pass.",
         "Mark delete_product readOnlyHint: true in a test server: your host should still ask before running it."]
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, cap, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p><span class="mono">${escHtml(code)}</span></p>
+          <div class="lbl">In code</div><div class="cap">${escHtml(cap)}</div><pre><code class="language-typescript">${escHtml(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${escHtml(watch)}</p>
           <div class="lbl">Verify</div><p>${escHtml(verify)}</p>
         </div>
@@ -677,6 +724,6 @@
 
     initChapter(3);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

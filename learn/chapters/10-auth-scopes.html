@@ -3,10 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Auth & Scopes · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
+    .flip-back .code-cap { font-size: 11.5px; color: var(--muted); margin: 0 0 2px; }
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
     .seg .btn { min-height: 44px; }
@@ -354,7 +359,8 @@
   --transport http --protocol-era auto \
   --header "Authorization: Bearer &lt;read-only token&gt;"</pre></div>
           <div class="step"><span class="n">4 · TRY A WRITE AS READ-ONLY</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
-  https://store.example.com/mcp --transport http --protocol-era auto \
+  https://store.example.com/mcp \
+  --transport http --protocol-era auto \
   --header "Authorization: Bearer &lt;read-only token&gt;" \
   --method tools/call --tool-name update_stock \
   --tool-arg productId=102 --tool-arg operation=increment \
@@ -617,18 +623,30 @@
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["🚪 Check at the door", "HTTP layer", "<code>// pseudocode<br>if (!verify(token)) return 401 + WWW-Authenticate: Bearer resource_metadata=\"…\"</code>", "Checking auth inside each tool instead. One forgotten check and that tool is open.", "<code>curl</code> without a token: 401 with a challenge, before any MCP handling."],
-      ["🔑 Constant-time match", "static dev tokens", "<code>// pseudocode<br>h = sha256(token); hit = clients.find(c =&gt; timingSafeEqual(c.hash, h))</code>", "Storing raw tokens, or comparing with <code>===</code>, which leaks timing.", "A wrong token of the right length still gets 401."],
-      ["🎯 Audience check", "OAuth tokens", "<code>// pseudocode<br>if (!aud.includes(\"https://store.example.com/mcp\")) reject()</code>", "Accepting any valid token from the same authorization server.", "Send a token issued for a different API. It must be rejected."],
-      ["🛂 A scope per tool", "authorization", "<code>// pseudocode<br>tool(\"update_stock\", { scope: \"inventory:write\" }, run)<br>// check the scope before run()</code>", "Relying on the input schema or the host's approval instead. Neither is authorization.", "Call <code>update_stock</code> with a read-only token: refused, nothing written."],
-      ["🚫 No passthrough", "upstream calls", "<code>// pseudocode<br>fetch(storeApi, { headers: { Authorization: serverOwnKey } })</code>", "Forwarding the client's bearer token upstream: the confused deputy.", "Check the upstream request log: only the server's own key appears."],
-      ["📮 Header on every request", "client side", "<code>Authorization: Bearer &lt;token&gt;</code> on every <code>POST /mcp</code>", "Tokens in URLs or in logs. Both end up somewhere you don't control.", "Inspector with <code>--header \"Authorization: Bearer …\"</code>, then check your logs redact it."],
+      ["🚪 Check at the door", "HTTP layer", "Pseudocode", "typescript",
+        "if (!verify(token)) {\n  res.status(401).set(\n    \"WWW-Authenticate\",\n    'Bearer resource_metadata=\"…\"'\n  );\n  return;\n}",
+        "Checking auth inside each tool instead. One forgotten check and that tool is open.", "<code>curl</code> without a token: 401 with a challenge, before any MCP handling."],
+      ["🔑 Constant-time match", "static dev tokens", "Pseudocode", "typescript",
+        "const h = sha256(token);\nconst hit = clients.find((c) =&gt;\n  timingSafeEqual(c.hash, h)\n);",
+        "Storing raw tokens, or comparing with <code>===</code>, which leaks timing.", "A wrong token of the right length still gets 401."],
+      ["🎯 Audience check", "OAuth tokens", "Pseudocode", "typescript",
+        "const me = \"https://store.example.com/mcp\";\nif (!aud.includes(me)) {\n  reject();\n}",
+        "Accepting any valid token from the same authorization server.", "Send a token issued for a different API. It must be rejected."],
+      ["🛂 A scope per tool", "authorization", "Pseudocode", "typescript",
+        "tool(\"update_stock\", {\n  scope: \"inventory:write\",\n}, run);\n// check the scope before run()",
+        "Relying on the input schema or the host's approval instead. Neither is authorization.", "Call <code>update_stock</code> with a read-only token: refused, nothing written."],
+      ["🚫 No passthrough", "upstream calls", "Pseudocode", "typescript",
+        "fetch(storeApi, {\n  headers: {\n    Authorization: serverOwnKey,\n  },\n});",
+        "Forwarding the client's bearer token upstream: the confused deputy.", "Check the upstream request log: only the server's own key appears."],
+      ["📮 Header on every request", "client side", "HTTP, on every POST /mcp", "plaintext",
+        "POST /mcp HTTP/1.1\nHost: store.example.com\nAuthorization: Bearer &lt;token&gt;\nContent-Type: application/json",
+        "Tokens in URLs or in logs. Both end up somewhere you don't control.", "Inspector with <code>--header \"Authorization: Bearer …\"</code>, then check your logs redact it."],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, kw, code, watch, verify]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, kw, cap, lang, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="file">${kw}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div>${cap ? `<div class="code-cap">${cap}</div>` : ""}<pre><code class="language-${lang}">${code}</code></pre>
           <div class="lbl">Watch out</div><p>${watch}</p>
           <div class="lbl">Verify</div><p>${verify}</p>
         </div>
@@ -636,6 +654,6 @@
 
     initChapter(10);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

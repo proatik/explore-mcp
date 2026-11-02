@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Transports & Lifecycle · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -120,6 +124,7 @@
     .flip-back .lbl:first-child { margin-top: 0; }
     .flip-back p { margin: 2px 0; font-size: 13.5px; word-break: break-word; }
     .flip-back code { font-size: 11.5px; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
   </style>
 </head>
 <body>
@@ -240,11 +245,18 @@
         <h3>▶ Try it for real</h3>
         <p class="note">Use the official MCP Inspector. Needs Node 22.19+.</p>
         <ol>
-          <li>Connect to the public example server over Streamable HTTP. It is protected with OAuth, so expect a 401 challenge first; follow the Inspector's auth flow to sign in (Chapter 10 explains every step).<pre class="code">npx @modelcontextprotocol/inspector --server-url https://example-server.modelcontextprotocol.io/mcp --transport http --protocol-era auto</pre></li>
-          <li>Watch the era change. The Inspector defaults to legacy (plain <code>initialize</code>); <code>auto</code> probes <code>server/discover</code> first and falls back. Connect once as modern, once as legacy, and compare the messages.<pre class="code">... --protocol-era modern
-... --protocol-era legacy</pre></li>
-          <li>Run a local server over stdio instead. Same messages, different transport.<pre class="code">npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-everything</pre></li>
-          <li>Point it at a server you built, with its token.<pre class="code">npx @modelcontextprotocol/inspector --server-url http://localhost:3000/mcp --transport http --protocol-era auto --header "Authorization: Bearer &lt;token&gt;"</pre></li>
+          <li>Connect to the public example server over Streamable HTTP. It is protected with OAuth, so expect a 401 challenge first; follow the Inspector's auth flow to sign in (Chapter 10 explains every step).<pre class="code"><code class="language-bash">npx @modelcontextprotocol/inspector \
+  --server-url https://example-server.modelcontextprotocol.io/mcp \
+  --transport http --protocol-era auto</code></pre></li>
+          <li>Watch the era change. The Inspector defaults to legacy (plain <code>initialize</code>); <code>auto</code> probes <code>server/discover</code> first and falls back. Connect once as modern, once as legacy, and compare the messages.<pre class="code"><code class="language-bash"># same command, two eras
+... --protocol-era modern
+... --protocol-era legacy</code></pre></li>
+          <li>Run a local server over stdio instead. Same messages, different transport.<pre class="code"><code class="language-bash">npx -y @modelcontextprotocol/inspector \
+  npx @modelcontextprotocol/server-everything</code></pre></li>
+          <li>Point it at a server you built, with its token.<pre class="code"><code class="language-bash">npx @modelcontextprotocol/inspector \
+  --server-url http://localhost:3000/mcp \
+  --transport http --protocol-era auto \
+  --header "Authorization: Bearer &lt;token&gt;"</code></pre></li>
           <li>Break it on purpose: send a wrong token. A good client reports the auth failure at once, with no retries.</li>
         </ol>
         <p class="note">Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a> · <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server" target="_blank" rel="noopener">Build a server</a></p>
@@ -378,7 +390,7 @@ Mcp-Session-Id: 1868a90c-...` },
         <div class="dir">${s.dir}</div>
         <h3>${stepIdx + 1}. ${s.t}</h3>
         ${list(s.pts)}
-        <pre class="code">${esc(s.code)}</pre>
+        <pre class="code"><code class="language-${/^\s*[{[]/.test(s.code) ? "json" : "http"}">${esc(s.code)}</code></pre>
         <div class="step-nav">
           <button class="btn" data-move="-1" ${stepIdx === 0 ? "disabled" : ""}>← Back</button>
           <button class="btn primary" data-move="1" ${stepIdx === steps.length - 1 ? "disabled" : ""}>Next →</button>
@@ -590,18 +602,46 @@ Mcp-Session-Id: 1868a90c-...` },
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["Pick a transport", "Local, TypeScript SDK: <code>serveStdio(createServer)</code> from <code>@modelcontextprotocol/server/stdio</code>. Remote: one Streamable HTTP endpoint such as <code>POST /mcp</code>.", "On stdio, a stray <code>console.log</code> to stdout corrupts the message stream. Log to stderr.", "Inspector over stdio, then over <code style=\"white-space:nowrap\">--transport http --protocol-era auto</code>. Same tools, same results."],
-      ["Stay stateless", "Pseudocode: <code>app.post(\"/mcp\", (req, res) =&gt; handle(createServer(), req, res))</code>, a fresh server object per request.", "Keeping per-user protocol state in memory. It breaks the moment a load balancer sends the next request elsewhere.", "Run two instances behind a balancer. Every call works no matter which one answers."],
-      ["Check headers against the body", "Pseudocode: <code>if (header(\"MCP-Protocol-Version\") !== meta.protocolVersion) return http400(\"HeaderMismatch\")</code>", "Trusting only the header. A gateway routes on it, so the body must agree.", "Send a request whose header and <code>_meta</code> disagree. Expect a 400."],
-      ["Negotiate the version", "Pseudocode: send <code>2026-07-28</code>; on <code>UnsupportedProtocolVersionError</code>, retry with a version from its supported list.", "Hard-coding one version forever. Servers move on; read the list they send back.", "Inspector with <code>--protocol-era modern</code>, then <code>legacy</code>, then <code>auto</code>."],
-      ["Retry with backoff", "Pseudocode: <code>for 3 attempts: try connect(); catch e: if isAuth(e) throw e; sleep(300ms × 2^n)</code>", "Retrying auth errors, or retrying forever. Both hide the real problem.", "Stop the server, start the client, then restart the server inside the retry window."],
-      ["Never replay writes", "Pseudocode: <code>retryOnDisconnect = tool.annotations?.readOnlyHint === true</code>", "Replaying <code>update_stock</code> after a dropped connection can apply the change twice.", "Kill the server mid-write. The client reports the error, and the stock changed at most once."],
+      ["Pick a transport", "TypeScript SDK (local)", `import { serveStdio } from
+  "@modelcontextprotocol/server/stdio";
+
+serveStdio(createServer);
+
+// Remote: one Streamable HTTP endpoint,
+// e.g. POST /mcp`, "On stdio, a stray <code>console.log</code> to stdout corrupts the message stream. Log to stderr.", "Inspector over stdio, then over <code style=\"white-space:nowrap\">--transport http --protocol-era auto</code>. Same tools, same results."],
+      ["Stay stateless", "Pseudocode", `// a fresh server object per request
+app.post("/mcp", (req, res) =>
+  handle(createServer(), req, res),
+);`,"Keeping per-user protocol state in memory. It breaks the moment a load balancer sends the next request elsewhere.", "Run two instances behind a balancer. Every call works no matter which one answers."],
+      ["Check headers against the body", "Pseudocode", `const sent = header("MCP-Protocol-Version");
+if (sent !== meta.protocolVersion) {
+  return http400("HeaderMismatch");
+}`,"Trusting only the header. A gateway routes on it, so the body must agree.", "Send a request whose header and <code>_meta</code> disagree. Expect a 400."],
+      ["Negotiate the version", "Pseudocode", `try {
+  return await send({ version: "2026-07-28" });
+} catch (e) {
+  if (!isUnsupportedVersion(e)) throw e;
+  // retry with one the server supports
+  const version = pick(e.data.supported);
+  return await send({ version });
+}`,"Hard-coding one version forever. Servers move on; read the list they send back.", "Inspector with <code>--protocol-era modern</code>, then <code>legacy</code>, then <code>auto</code>."],
+      ["Retry with backoff", "Pseudocode", `for (let n = 0; n < 3; n++) {
+  try {
+    return await connect();
+  } catch (e) {
+    if (isAuth(e)) throw e;
+    await sleep(300 * 2 ** n);
+  }
+}`,"Retrying auth errors, or retrying forever. Both hide the real problem.", "Stop the server, start the client, then restart the server inside the retry window."],
+      ["Never replay writes", "Pseudocode", `const retryOnDisconnect =
+  tool.annotations?.readOnlyHint === true;`,"Replaying <code>update_stock</code> after a dropped connection can apply the change twice.", "Kill the server mid-write. The client reports the error, and the stock changed at most once."],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, code, trap, check]) => `
+    const escH = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    $("lens-cards").innerHTML = LENS.map(([say, cap, code, trap, check]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="cap">${cap}</div><pre><code class="language-typescript">${escH(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${trap}</p>
           <div class="lbl">Verify</div><p>${check}</p>
         </div>
@@ -609,6 +649,6 @@ Mcp-Session-Id: 1868a90c-...` },
 
     initChapter(1);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

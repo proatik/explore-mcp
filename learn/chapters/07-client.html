@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Building a Client · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
@@ -108,6 +112,7 @@
 
     /* ---------- Builder's Lens ---------- */
     .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
     .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
   </style>
 </head>
@@ -428,6 +433,7 @@
         prompts: caps.prompts ? "[ …3 prompts ]" : "[]"
       };
       $("catalog").textContent = JSON.stringify(cat, null, 2).replace(/"\[ (.*?) \]"/g, "[ $1 ]").replace(/"\[\]"/g, "[]");
+      delete $("catalog").dataset.hl;
     }
     $("caps").onclick = e => { const b = e.target.closest("[data-cap]"); if (b) { caps[b.dataset.cap] = !caps[b.dataset.cap]; renderDiscovery(); } };
     renderDiscovery();
@@ -514,18 +520,38 @@
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["🔎 Capability-driven discovery", "discovery", "<code>if (caps.tools) tools = await listAll('tools/list')</code> · pseudocode, one list per declared capability", "Calling a list method the server never declared, then treating <code>-32601</code> as an outage", "In the Inspector, compare the declared capabilities with which tabs have content"],
-      ["🏷️ Namespacing tool names", "naming", "<code>name = servers.length > 1 ? server + '__' + tool : tool</code> · pseudocode", "Prefixing only when a clash appears: names then change as servers come and go, and the model's history breaks", "Connect two servers that both expose <code>get_customer</code>: the model must see two distinct names"],
-      ["🧯 Containing an outage", "registry", "<code>await Promise.allSettled(servers.map(discover))</code>", "<code>Promise.all</code>: one dead server takes every server down with it", "Stop one server and rediscover: the others still list their tools"],
-      ["📄 Following cursors", "pagination", "<code>do { page = await list(cursor); items.push(...page.items); cursor = page.nextCursor } while (cursor)</code> · pseudocode", "Stopping at the first page silently hides tools from the model", "Run the Inspector CLI with <code>--method tools/list</code> and look for <code>nextCursor</code>"],
-      ["🔁 Safe retries", "retries", "<code>retry = op.isRead && kind === 'transient'</code> · pseudocode", "Retrying <code>tools/call</code> after a timeout can apply a write twice", "Drop the connection mid-read and mid-write: the read runs once more, the write is only reported"],
-      ["🚦 Classifying failures", "errors", "<code>kind = [401, 403].includes(status) ? 'auth' : …</code> · pseudocode", "Retrying a 401 with backoff hides a configuration problem behind a slow failure", "Give the client a wrong token: it should stop at once with a clear message"],
+      ["🔎 Capability-driven discovery", "discovery", "Pseudocode · one list per declared capability", `if (caps.tools) {
+  tools = await listAll("tools/list");
+}
+if (caps.resources) {
+  resources = await listAll(
+    "resources/list",
+  );
+}`, "Calling a list method the server never declared, then treating <code>-32601</code> as an outage", "In the Inspector, compare the declared capabilities with which tabs have content"],
+      ["🏷️ Namespacing tool names", "naming", "Pseudocode", `const name = servers.length > 1
+  ? server + "__" + tool
+  : tool;`, "Prefixing only when a clash appears: names then change as servers come and go, and the model's history breaks", "Connect two servers that both expose <code>get_customer</code>: the model must see two distinct names"],
+      ["🧯 Containing an outage", "registry", "TypeScript", `const results = await Promise.allSettled(
+  servers.map(discover),
+);`, "<code>Promise.all</code>: one dead server takes every server down with it", "Stop one server and rediscover: the others still list their tools"],
+      ["📄 Following cursors", "pagination", "Pseudocode", `let cursor;
+do {
+  const page = await list(cursor);
+  items.push(...page.items);
+  cursor = page.nextCursor;
+} while (cursor);`, "Stopping at the first page silently hides tools from the model", "Run the Inspector CLI with <code>--method tools/list</code> and look for <code>nextCursor</code>"],
+      ["🔁 Safe retries", "retries", "Pseudocode", `const retry =
+  op.isRead && kind === "transient";`, "Retrying <code>tools/call</code> after a timeout can apply a write twice", "Drop the connection mid-read and mid-write: the read runs once more, the write is only reported"],
+      ["🚦 Classifying failures", "errors", "Pseudocode", `const kind = [401, 403].includes(status)
+  ? "auth"
+  : classify(error); // transient, …`, "Retrying a 401 with backoff hides a configuration problem behind a slow failure", "Give the client a wrong token: it should stop at once with a clear message"],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, tag, code, trap, check]) => `
+    const escCode = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    $("lens-cards").innerHTML = LENS.map(([say, tag, cap, code, trap, check]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="file">${tag}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="cap">${cap}</div><pre><code class="language-typescript">${escCode(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${trap}</p>
           <div class="lbl">Verify</div><p>${check}</p>
         </div>
@@ -533,6 +559,6 @@
 
     initChapter(7);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

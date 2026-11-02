@@ -3,10 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Long-running Work · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
+    #lens-cards .code-cap { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 2px; }
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
     .seg .btn { min-height: 44px; }
@@ -296,14 +301,19 @@
       <div class="card run">
         <h3>▶ Try it for real</h3>
         <p class="lead">Use the official MCP Inspector (Node 22.19+). Progress and cancel show up best in the web Inspector, which keeps the connection open.</p>
-<pre><span class="cm"># open the Inspector on the Everything reference server</span>
-npx @modelcontextprotocol/inspector npx -y @modelcontextprotocol/server-everything
+<pre><code class="language-bash"># open the Inspector on the Everything reference server
+npx @modelcontextprotocol/inspector \
+  npx -y @modelcontextprotocol/server-everything
 
-<span class="cm"># list its tools and look for a slow one that reports progress</span>
-npx @modelcontextprotocol/inspector --cli npx -y @modelcontextprotocol/server-everything --method tools/list
+# list its tools and look for a slow one that reports progress
+npx @modelcontextprotocol/inspector --cli \
+  npx -y @modelcontextprotocol/server-everything \
+  --method tools/list
 
-<span class="cm"># your own server: call a slow tool, watch progress, then cancel one</span>
-npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto</pre>
+# your own server: call a slow tool, watch progress, then cancel one
+npx @modelcontextprotocol/inspector \
+  --server-url https://store.example.com/mcp \
+  --transport http --protocol-era auto</code></pre>
         <p class="note">Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">modelcontextprotocol.io/docs/tools/inspector</a>. Write tools should still ask a human first.</p>
       </div>
     </section>
@@ -562,19 +572,20 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
     renderQuiz();
 
     /* ---------- Builder's Lens ---------- */
+    const escCode = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const LENS = [
-      ["📶 Report progress", "<code>const token = ctx.mcpReq._meta?.progressToken; if (token !== undefined) await ctx.mcpReq.notify({ method: 'notifications/progress', params: { progressToken: token, progress: page, total } })</code>", "No token, no progress. And <code>progress</code> must go up every time.", "Call the tool from the web Inspector and watch the progress arrive"],
-      ["🛑 Stop when cancelled", "<code>for (const page of pages) { if (ctx.mcpReq.signal.aborted) return; … }</code>", "Check between units of work, and pass the signal on to database and HTTP calls.", "Cancel mid-call in the web Inspector: no result should arrive"],
-      ["⏱️ Client timeouts", "Pseudocode: <code>callTool(request, { timeout: 30_000, resetTimeoutOnProgress: true, maxTotalTimeout: 120_000 })</code>", "Progress may reset the clock, but always keep a maximum.", "Point a client at a tool that never finishes: it must give up"],
-      ["🔑 Idempotency store", "Pseudocode: <code>key = clientId + tool + idempotencyKey; if (seen(key)) return sameArgs ? stored : conflict();</code>", "Keep successes only, expire them (e.g. after 10 minutes), and reject a reused key with new arguments.", "Send the same write twice with one key: the second is a replay"],
-      ["🏷️ Annotate retries", "<code>annotations: { idempotentHint: false }</code>", "Hints are advice from the server. A client should still never blindly retry a write.", "<code>--method tools/list</code> shows each tool's annotations"],
-      ["📄 Page big results", "Pseudocode: <code>inputSchema: z.object({ page: z.number().int().min(1), perPage: z.number().int().max(100) })</code>", "Return a way to get the next page. Never one giant reply.", "Ask for page 2 and compare it with page 1"],
+      ["📶 Report progress",{"cap":"TypeScript SDK","lang":"typescript","src":"const token = ctx.mcpReq._meta?.progressToken;\nif (token !== undefined) {\n  await ctx.mcpReq.notify({\n    method: 'notifications/progress',\n    params: {\n      progressToken: token,\n      progress: page,\n      total,\n    },\n  });\n}"},"No token, no progress. And <code>progress</code> must go up every time.","Call the tool from the web Inspector and watch the progress arrive"],
+      ["🛑 Stop when cancelled",{"cap":"TypeScript SDK","lang":"typescript","src":"for (const page of pages) {\n  if (ctx.mcpReq.signal.aborted) return;\n  // … process this page\n}"},"Check between units of work, and pass the signal on to database and HTTP calls.","Cancel mid-call in the web Inspector: no result should arrive"],
+      ["⏱️ Client timeouts",{"cap":"Pseudocode","lang":"typescript","src":"callTool(request, {\n  timeout: 30_000,\n  resetTimeoutOnProgress: true,\n  maxTotalTimeout: 120_000,\n});"},"Progress may reset the clock, but always keep a maximum.","Point a client at a tool that never finishes: it must give up"],
+      ["🔑 Idempotency store",{"cap":"Pseudocode","lang":"typescript","src":"const key = clientId + tool + idempotencyKey;\nif (seen(key)) {\n  return sameArgs ? stored : conflict();\n}"},"Keep successes only, expire them (e.g. after 10 minutes), and reject a reused key with new arguments.","Send the same write twice with one key: the second is a replay"],
+      ["🏷️ Annotate retries",{"cap":"Tool definition","lang":"typescript","src":"annotations: {\n  idempotentHint: false,\n},"},"Hints are advice from the server. A client should still never blindly retry a write.","<code>--method tools/list</code> shows each tool's annotations"],
+      ["📄 Page big results",{"cap":"Pseudocode","lang":"typescript","src":"inputSchema: z.object({\n  page: z.number().int().min(1),\n  perPage: z.number().int().max(100),\n}),"},"Return a way to get the next page. Never one giant reply.","Ask for page 2 and compare it with page 1"],
     ];
     $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="code-cap">${code.cap}</div><pre><code class="language-${code.lang}">${escCode(code.src)}</code></pre>
           <div class="lbl">Watch out</div><p>${watch}</p>
           <div class="lbl">Verify</div><p>${verify}</p>
         </div>
@@ -582,6 +593,6 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
 
     initChapter(6);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

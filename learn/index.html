@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
   <title>MCP/LEARN</title>
   <meta name="description" content="A hands-on journey into the Model Context Protocol: servers, clients, agents and production. 14 interactive chapters.">
   <meta property="og:title" content="MCP/LEARN · Connect. Build. Ship.">
@@ -11,7 +11,11 @@
   <meta property="og:image" content="https://explore-mcp.netlify.app/assets/screenshots/journey-map.png">
   <meta property="og:url" content="https://explore-mcp.netlify.app/">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="assets/style.css?v=2">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -47,15 +51,6 @@
     // Only show "Coming soon" in the legend while some chapters are still locked
     if (CHAPTERS.every((c) => c.ready)) document.querySelector(".l-locked")?.remove();
 
-    if (getDone().length) {
-      const reset = document.createElement("button");
-      reset.className = "jm-reset";
-      reset.textContent = "↺ Reset progress";
-      reset.addEventListener("click", () => {
-        if (confirm("Reset progress for every chapter?")) { resetDone(); location.reload(); }
-      });
-      document.querySelector(".jm-legend").appendChild(reset);
-    }
 
     const map = document.getElementById("map");
     const done = getDone();
@@ -104,7 +99,19 @@
         </div>`;
       map.appendChild(el);
     });
+    if (getDone().length) {
+      document.getElementById("map").insertAdjacentHTML("afterend",
+        `<div class="jm-restart"><div>Want to start over?</div><button type="button">Reset progress</button></div>`);
+      document.querySelector(".jm-restart button").addEventListener("click", async () => {
+        const ok = await confirmDialog({
+          title: "Reset your progress?",
+          body: `This clears the completed mark on all ${CHAPTERS.length} chapters. It can't be undone.`,
+          confirmLabel: "Reset progress",
+        });
+        if (ok) { resetDone(); location.reload(); }
+      });
+    }
   </script>
-  <script src="assets/app.js?v=2"></script>
+  <script src="assets/app.js?v=4"></script>
 </body>
 </html>

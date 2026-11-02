@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>Human in the Loop · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -153,6 +157,7 @@
     .flip-back .lbl:first-child { margin-top: 0; }
     .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
     .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
     .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
   </style>
 </head>
@@ -272,9 +277,11 @@
         <div class="card layer"><span class="step">3 · SERVER</span><span class="ic">🛡️</span><b>Validates</b><ul><li>Scopes and schema</li><li>Business rules, e.g. valid status changes</li></ul></div>
         <div class="card layer"><span class="step">4 · STORE</span><span class="ic">🏪</span><b>Executes</b><ul><li>The store's own system stays the source of truth</li></ul></div>
       </div>
-      <pre class="json" style="margin-top:12px">call update_order_status '{"orderId":5001,"status":"processing"}'
+      <pre class="json" style="margin-top:12px"><code class="language-plaintext">call update_order_status \
+  '{"orderId":5001,"status":"processing"}'
   Approve? [y/N] y
-✖ INVALID_TRANSITION Cannot move order 5001 from "completed" to "processing".</pre>
+✖ INVALID_TRANSITION Cannot move order 5001
+  from "completed" to "processing".</code></pre>
       <p class="note" style="margin-top:6px">Illustrative, with an example error code: the human approved, but the server still refuses. A completed order is final.</p>
     </section>
 
@@ -361,13 +368,13 @@
   --header "Authorization: Bearer &lt;token&gt;"</pre></div>
           <div class="step"><span class="n">2 · OR THE REFERENCE SERVER</span><pre class="json">npx @modelcontextprotocol/inspector \
   npx -y @modelcontextprotocol/server-everything</pre></div>
-          <div class="step"><span class="n">3 · READ THE HINTS</span><pre class="json">Tools tab → each tool's annotations
+          <div class="step"><span class="n">3 · READ THE HINTS</span><pre class="json"><code class="language-plaintext">Tools tab → each tool's annotations
 readOnlyHint · destructiveHint
-→ note the level your host would pick</pre></div>
-          <div class="step"><span class="n">4 · TEST YOUR OWN GATE</span><pre class="json">In your host: decline one write, then
+→ note the level your host would pick</code></pre></div>
+          <div class="step"><span class="n">4 · TEST YOUR OWN GATE</span><pre class="json"><code class="language-plaintext">In your host: decline one write, then
 type "yes" at a type-the-name prompt.
 Both must decline, and the model must
-receive a NOT EXECUTED result.</pre></div>
+receive a NOT EXECUTED result.</code></pre></div>
         </div>
         <p class="note" style="margin-top:10px">The Inspector calls tools directly, with no approval gate. That's fine for debugging, and it's exactly why your host needs one. Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a> · <a href="https://modelcontextprotocol.io/specification/2026-07-28/server/tools" target="_blank" rel="noopener">Tools spec</a>.</p>
       </div>
@@ -637,18 +644,48 @@ receive a NOT EXECUTED result.</pre></div>
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["📋 A rule per tool", "policy rules", "<code>// pseudocode<br>rules = { search_products: 'auto', update_stock: 'confirm', delete_product: 'explicit', add_order_note: a =&gt; a.customerVisible ? 'explicit' : 'confirm' }</code>", "Rules keyed by bare tool name. A second server's <code>search_products</code> would inherit <code>auto</code>. Key them by server and tool.", "Connect a second server with a same-named tool. It must not run without asking."],
-      ["⚖️ Unknown tools", "annotations", "<code>// pseudocode<br>level = rule ?? (ann.destructiveHint ? 'explicit' : 'confirm')</code>", "Letting <code>readOnlyHint: true</code> lower a level to <code>auto</code>. Hints from untrusted servers can only raise it.", "Inspector → Tools tab on a new server: whatever it claims, your host still asks."],
-      ["⌨️ Type to confirm", "explicit level", "<code>// pseudocode<br>approved = answer.trim() === request.tool</code>", "Accepting <code>yes</code>, <code>y</code> or Enter on a destructive call. The friction is the point.", "At a type-the-name prompt, answer <code>yes</code>. It must decline."],
-      ["🤖 Declines go back", "tool result", "<code>// pseudocode<br>return { isError: true, content: [{ type: 'text', text: 'NOT EXECUTED: the user declined…' }] }</code>", "Dropping the call silently. The model retries, or tells the user it succeeded.", "Decline a write in chat. The model should ask what to do next, not retry."],
-      ["🧪 Scripted approver", "tests", "<code>// pseudocode<br>approver = { seen: [], ask(req) { this.seen.push(req); return answer } }</code>", "Auto-approving everything in tests. The gate is then never tested.", "Assert which calls were asked about, and at which level, in an agent test."],
-      ["📝 Server needs input", "InputRequiredResult", "<code>{ resultType: \"input_required\", inputRequests: { … }, requestState: \"…\" }</code>", "Treating it as approval. It asks for missing details; the host still gates risky calls.", "Call the tool in the Inspector: expect the input request, then a retry with <code>inputResponses</code>."],
+      ["📋 A rule per tool", "policy rules", "Pseudocode", `const rules = {
+  search_products: "auto",
+  update_stock: "confirm",
+  delete_product: "explicit",
+  add_order_note: (a) =>
+    a.customerVisible
+      ? "explicit"
+      : "confirm",
+};`, "Rules keyed by bare tool name. A second server's <code>search_products</code> would inherit <code>auto</code>. Key them by server and tool.", "Connect a second server with a same-named tool. It must not run without asking."],
+      ["⚖️ Unknown tools", "annotations", "Pseudocode", `const level = rule ?? (
+  ann.destructiveHint
+    ? "explicit"
+    : "confirm"
+);`, "Letting <code>readOnlyHint: true</code> lower a level to <code>auto</code>. Hints from untrusted servers can only raise it.", "Inspector → Tools tab on a new server: whatever it claims, your host still asks."],
+      ["⌨️ Type to confirm", "explicit level", "Pseudocode", `const approved =
+  answer.trim() === request.tool;`, "Accepting <code>yes</code>, <code>y</code> or Enter on a destructive call. The friction is the point.", "At a type-the-name prompt, answer <code>yes</code>. It must decline."],
+      ["🤖 Declines go back", "tool result", "Pseudocode", `return {
+  isError: true,
+  content: [{
+    type: "text",
+    text:
+      "NOT EXECUTED: the user declined…",
+  }],
+};`, "Dropping the call silently. The model retries, or tells the user it succeeded.", "Decline a write in chat. The model should ask what to do next, not retry."],
+      ["🧪 Scripted approver", "tests", "Pseudocode", `const approver = {
+  seen: [],
+  ask(req) {
+    this.seen.push(req);
+    return answer;
+  },
+};`, "Auto-approving everything in tests. The gate is then never tested.", "Assert which calls were asked about, and at which level, in an agent test."],
+      ["📝 Server needs input", "InputRequiredResult", "Spec JSON · simplified", `{
+  "resultType": "input_required",
+  "inputRequests": { … },
+  "requestState": "…"
+}`, "Treating it as approval. It asks for missing details; the host still gates risky calls.", "Call the tool in the Inspector: expect the input request, then a retry with <code>inputResponses</code>."],
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, kw, code, watch, verify]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, kw, cap, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="file">${kw}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">In code</div><div class="cap">${cap}</div><pre><code class="language-${code.trimStart().startsWith("{") ? "json" : "typescript"}">${esc(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${watch}</p>
           <div class="lbl">Verify</div><p>${verify}</p>
         </div>
@@ -656,6 +693,6 @@ receive a NOT EXECUTED result.</pre></div>
 
     initChapter(9);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>

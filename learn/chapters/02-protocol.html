@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/favicon.svg?v=2" type="image/svg+xml">
   <title>The Protocol · MCP/LEARN</title>
-  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style data-page>
     /* ---------- Shared bits ---------- */
     .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -133,6 +137,7 @@
     .flip-back .lbl:first-child { margin-top: 0; }
     .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
     .flip-back code { font-size: 11.5px; }
+    .flip-back .cap { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
   </style>
 </head>
 <body>
@@ -352,17 +357,21 @@
       <div class="run">
         <div class="card">
           <h3>▶ Try it for real</h3>
-          <pre class="json"><span class="c"># the official MCP Inspector (Node 22.19+), no install</span>
+          <pre class="json"><code class="language-bash"># the official MCP Inspector (Node 22.19+), no install
 npx @modelcontextprotocol/inspector
 
-<span class="c"># or start it against a local server you're building</span>
-npx @modelcontextprotocol/inspector node path/to/server/index.js
+# or start it against a local server you're building
+npx @modelcontextprotocol/inspector \
+  node path/to/server/index.js
 
-<span class="c"># or against a published reference server</span>
-npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-filesystem ~/Desktop
+# or against a published reference server
+npx -y @modelcontextprotocol/inspector \
+  npx @modelcontextprotocol/server-filesystem ~/Desktop
 
-<span class="c"># or a remote Streamable HTTP server (use your own URL)</span>
-npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto</pre>
+# or a remote Streamable HTTP server (use your own URL)
+npx @modelcontextprotocol/inspector \
+  --server-url https://store.example.com/mcp \
+  --transport http --protocol-era auto</code></pre>
         </div>
         <div class="card">
           <h3>👀 What to notice</h3>
@@ -569,6 +578,7 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
       const res = { jsonrpc: "2.0", id: 20 + pg * 2, result: { resultType: "complete",
         resources: p.items.map((u) => ({ uri: "shop://" + u, name: u })), ...(p.next ? { nextCursor: p.next } : {}) } };
       $("pg-title").textContent = pgShowRes ? `Page ${pg + 1} arrives` : `Request page ${pg + 1}`;
+      $("pg-json").removeAttribute("data-hl");
       $("pg-json").innerHTML = json(pgShowRes ? res : req);
       $("pg-dots").innerHTML = PAGES.map((_, i) => `<i class="${i <= pg ? "on" : ""}"></i>`).join("");
       const last = pgShowRes && !p.next;
@@ -612,6 +622,7 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
       const x = ERRS[eActive];
       const isTool = x.kind === "tool";
       $("err-title").textContent = isTool ? "Response: a result with isError" : "Response: a JSON-RPC error";
+      $("err-json").removeAttribute("data-hl");
       $("err-json").innerHTML = json(x.body);
       $("err-verdict").innerHTML = `
         <span class="chip ${isTool ? "res" : "err"}" style="align-self:flex-start">${isTool ? "Tool execution error" : "Protocol error"}</span>
@@ -683,30 +694,61 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
 
     /* ---------- Builder's Lens ---------- */
     const LENS = [
-      ["📦 Return text and data", "return { content: [{ type: \"text\", text: JSON.stringify(stock) }], structuredContent: stock }",
+      ["📦 Return text and data", "Tool handler returns", `return {
+  content: [{
+    type: "text",
+    text: JSON.stringify(stock),
+  }],
+  structuredContent: stock,
+};`,
         "If a tool declares an outputSchema, its structuredContent must match it. Keep the text copy in sync for clients that only read text.",
         "Inspector Tools tab: call get_stock_level and compare the text block with the structured data."],
-      ["🚫 Fail as a result, not a throw", "return { isError: true, content: [{ type: \"text\", text: \"INVALID_TRANSITION: order 5001 is completed\" }] }",
+      ["🚫 Fail as a result, not a throw", "Tool handler returns", `return {
+  isError: true,
+  content: [{
+    type: "text",
+    text: "INVALID_TRANSITION: order 5001 is completed",
+  }],
+};`,
         "Throwing turns a business rule into a protocol error. The model can't read it or recover.",
         "Call update_order_status on a completed order. Expect a normal result with isError: true."],
-      ["🏷️ Stable error codes", "const RETRYABLE = new Set([\"RATE_LIMITED\", \"UPSTREAM_UNAVAILABLE\"])  // pseudocode",
+      ["🏷️ Stable error codes", "Pseudocode", `const RETRYABLE = new Set([
+  "RATE_LIMITED",
+  "UPSTREAM_UNAVAILABLE",
+]);`,
         "These codes are your own convention, not the spec's. Document them and say which ones are safe to retry.",
         "Stop the upstream system, call a tool, and check you get one clear retryable code, not a stack trace."],
-      ["🧯 Protocol errors in the client", "catch (err) { if (err.code === -32601 || err.code === -32602) report(err) }  // pseudocode",
+      ["🧯 Protocol errors in the client", "Pseudocode", `try {
+  await client.callTool(call);
+} catch (err) {
+  if (err.code === -32601 || err.code === -32602) {
+    report(err); // a caller bug, not for the model
+  }
+}`,
         "Don't hand -32601 or -32602 to the model as if it could fix them. They mean the caller is wrong.",
         "Call a misspelled tool name and read the JSON-RPC error code in the Inspector."],
-      ["🕰️ Stamp every request", "params._meta = { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }",
+      ["🕰️ Stamp every request", "Request params (SDKs usually add this)", `params._meta = {
+  "io.modelcontextprotocol/protocolVersion":
+    "2026-07-28",
+  "io.modelcontextprotocol/clientCapabilities": {},
+};`,
         "SDKs usually add _meta for you. A hand-rolled client that forgets it gets -32602 and HTTP 400.",
         "Open any request in the Inspector's monitor and find the _meta keys."],
-      ["📡 One listen, many updates", "request(\"subscriptions/listen\", { notifications: { resourceSubscriptions: [\"shop://products/101\"] } })  // pseudocode",
+      ["📡 One listen, many updates", "Pseudocode", `request("subscriptions/listen", {
+  notifications: {
+    resourceSubscriptions: [
+      "shop://products/101",
+    ],
+  },
+});`,
         "Every update carries the listen request's id as its subscriptionId. Route updates by it, not by guesswork.",
         "Subscribe to a resource, change it, and watch notifications/resources/updated arrive in the monitor."]
     ];
-    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+    $("lens-cards").innerHTML = LENS.map(([say, cap, code, watch, verify]) => `
       <div class="flip"><div class="flip-inner">
         <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
         <div class="flip-face flip-back">
-          <div class="lbl">In code</div><p><code>${esc(code)}</code></p>
+          <div class="lbl">In code</div><div class="cap">${esc(cap)}</div><pre><code class="language-typescript">${esc(code)}</code></pre>
           <div class="lbl">Watch out</div><p>${esc(watch)}</p>
           <div class="lbl">Verify</div><p>${esc(verify)}</p>
         </div>
@@ -714,6 +756,6 @@ npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp -
 
     initChapter(2);
   </script>
-  <script src="../assets/app.js?v=2"></script>
+  <script src="../assets/app.js?v=4"></script>
 </body>
 </html>
