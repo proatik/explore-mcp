@@ -1,0 +1,41 @@
+# Mock store, MCP server and the agent page.
+#
+#   docker compose up -d --build     then open http://localhost:4000
+#   docker compose stop
+#
+# The token and OpenAI key come from .env. To use a real store instead of the
+# mock, point WOO_BASE_URL below at it and set its keys in .env.
+
+services:
+  woo-mock:
+    build: { context: ., target: woo-mock }
+    environment:
+      WOO_MOCK_HOST: 0.0.0.0
+      WOO_CONSUMER_KEY: ${WOO_CONSUMER_KEY:-ck_dev}
+      WOO_CONSUMER_SECRET: ${WOO_CONSUMER_SECRET:-cs_dev}
+
+  mcp-server:
+    build: { context: ., target: mcp-server }
+    depends_on: [woo-mock]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      WOO_BASE_URL: http://woo-mock:8080
+      WOO_CONSUMER_KEY: ${WOO_CONSUMER_KEY:-ck_dev}
+      WOO_CONSUMER_SECRET: ${WOO_CONSUMER_SECRET:-cs_dev}
+      # the mock speaks plain HTTP on the private compose network.
+      WOO_ALLOW_INSECURE_HTTP: "true"
+      MCP_HOST: 0.0.0.0
+      MCP_ALLOWED_HOSTS: localhost,127.0.0.1,mcp-server
+      MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-dev-agent-token-change-me}
+
+  # the page has no login, so it is published on localhost only.
+  mcp-client:
+    build: { context: ., target: mcp-client }
+    depends_on:
+      mcp-server: { condition: service_healthy }
+    ports: ["127.0.0.1:4000:4000"]
+    environment:
+      CLIENT_HOST: 0.0.0.0
+      MCP_SERVER_URL: http://mcp-server:3000/mcp
+      MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-dev-agent-token-change-me}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
