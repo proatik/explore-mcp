@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Building a Client · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+    code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+    .lbl { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+    .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .three { grid-template-columns: 1fr; } }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+    .two > .card, .three > .card { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ---------- Explore: servers + catalog ---------- */
+    .srv { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+    .srv .ic { font-size: 22px; flex: none; }
+    .srv .tx { flex: 1; min-width: 0; }
+    .srv .tx b { display: block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px; }
+    .srv .tx span { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+    .pill { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; flex: none; }
+    .pill.ok { background: var(--good-soft); color: var(--good); }
+    .pill.down { background: var(--bad-soft); color: var(--bad); }
+    .pill.off { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+    .tog-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tog-row .btn { min-height: 44px; }
+    .tog-row .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tools-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .count { font-size: 28px; font-weight: 800; color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+    .chips span { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; padding: 5px 10px; border-radius: 999px; background: var(--surface-2); overflow-wrap: anywhere; }
+    .chips span.crm { background: var(--accent-soft); }
+    .chips span.clash { box-shadow: 0 0 0 2px var(--warn); }
+    .failure { padding: 10px 12px; border-radius: 12px; background: var(--bad-soft); font-size: 13px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; overflow-wrap: anywhere; }
+    .rule { margin-top: auto; padding: 10px 12px; border-radius: 12px; border: 1.5px dashed var(--line); font-size: 13px; }
+    .verdict { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--accent-soft); font-size: 15px; text-align: center; }
+
+    /* ---------- Discovery ---------- */
+    .caps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .caps .btn { min-height: 48px; white-space: nowrap; font-size: 14px; padding-left: 6px; padding-right: 6px; }
+    .caps .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .calls { display: flex; flex-direction: column; gap: 8px; }
+    .callrow { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+    .callrow .st { margin-left: auto; font-family: var(--font); font-size: 12px; font-weight: 800; flex: none; }
+    .callrow.on { border-color: var(--good); background: var(--good-soft); }
+    .callrow.on .st { color: var(--good); }
+    .callrow.skip { opacity: .55; border-style: dashed; }
+    .callrow.skip .st { color: var(--muted); }
+    .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    @media (max-width: 760px) { .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .fstep { padding: 12px; border-radius: 12px; background: var(--surface-2); text-align: center; }
+    .fstep .n { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .08em; }
+    .fstep b { display: block; margin: 4px 0 2px; font-size: 14px; }
+    .fstep span { font-size: 12px; color: var(--muted); }
+
+    /* ---------- Registry: lifecycle ---------- */
+    .states { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    @media (max-width: 700px) { .states { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .states .btn { min-height: 48px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; padding-left: 4px; padding-right: 4px; }
+    .states .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .state-detail { min-height: 120px; }
+    .state-detail h3 { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+    /* ---------- Calling ---------- */
+    .ops { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .ops th, .ops td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .ops th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .ops td:first-child { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; white-space: nowrap; }
+    .yes { color: var(--good); font-weight: 800; }
+    .no { color: var(--bad); font-weight: 800; }
+    .errs-card { justify-content: center; }
+    .errs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .errs .btn { min-height: 60px; overflow-wrap: anywhere; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; white-space: normal; line-height: 1.3; }
+    .errs .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .kind { display: inline-block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-weight: 800; font-size: 15px; padding: 4px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+    .err-detail { min-height: 150px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+
+    /* ---------- Try ---------- */
+    .quiz { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-case { font-size: 18px; font-weight: 700; text-align: center; min-height: 64px; display: flex; align-items: center; justify-content: center; }
+    .q-opts { display: flex; flex-direction: column; gap: 8px; }
+    .q-opts .btn { min-height: 52px; text-align: left; white-space: normal; line-height: 1.35; }
+    .q-opts .btn.right { background: var(--good-soft); border-color: var(--good); }
+    .q-opts .btn.wrong { background: var(--bad-soft); border-color: var(--bad); }
+    .fb { min-height: 48px; font-size: 14px; color: var(--muted); text-align: center; }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .q-foot { display: flex; justify-content: center; }
+    .q-foot .btn { min-height: 44px; }
+    .run { margin-top: 16px; }
+    .run h3 { margin: 0 0 4px; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+    .step { display: flex; flex-direction: column; gap: 6px; }
+    .step .n { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+
+    /* ---------- Builder's Lens ---------- */
+    .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 07 Building a Client</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 07 · Building a Client</div>
+      <h1>One client.<br>Many servers.</h1>
+      <p>How a host discovers servers, keeps one catalog, and calls them safely.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#discovery">🔎 Discovery</a>
+        <a href="#registry">🗂️ Registry</a>
+        <a href="#calling">📞 Calling</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Add a second server</h2>
+      <p class="sub">The shop assistant talks to the store server. Add a second server and watch the tool names the model sees.</p>
+
+      <div class="two">
+        <div class="card">
+          <div class="lbl">Servers in the host's config</div>
+          <div class="srv">
+            <span class="ic">🛒</span>
+            <span class="tx"><b>store</b><span>Lumen &amp; Leaf · https://store.example.com/mcp</span></span>
+            <span class="pill ok">connected</span>
+          </div>
+          <div class="srv" id="crm-row">
+            <span class="ic">📇</span>
+            <span class="tx"><b>crm</b><span>Customer support · https://crm.example.com/mcp</span></span>
+            <span class="pill off" id="crm-pill">not configured</span>
+          </div>
+          <div class="tog-row">
+            <button class="btn" id="crm-add">➕ Add crm</button>
+            <button class="btn" id="crm-down" disabled>🔌 Take down</button>
+          </div>
+          <div class="failure" id="crm-fail" hidden></div>
+          <p class="note">Both servers are illustrative. Prefixing every name once several servers connect is one common, predictable approach.</p>
+        </div>
+
+        <div class="card">
+          <div class="tools-head">
+            <div class="lbl" style="margin:0">Tool names the model sees</div>
+            <span class="count" id="tool-count">10</span>
+          </div>
+          <div class="chips" id="tool-chips"></div>
+          <div class="rule"><b>The rule:</b> 1 server → plain names · 2 or more → <code>&lt;server&gt;__&lt;tool&gt;</code></div>
+        </div>
+      </div>
+      <div class="verdict" id="explore-verdict"></div>
+    </section>
+
+    <!-- ================= DISCOVERY ================= -->
+    <section class="section" id="discovery">
+      <span class="step-label">💡 Learn</span>
+      <h2>Discovery: ask, don't assume</h2>
+      <p class="sub">A good host hardcodes nothing about a server. It learns what each one offers.</p>
+
+      <div class="flow">
+        <div class="fstep"><span class="n">STEP 1</span><b>Connect</b><span>Streamable HTTP, with credentials</span></div>
+        <div class="fstep"><span class="n">STEP 2</span><b>Pick the era</b><span>Modern 2026-07-28, or legacy fallback</span></div>
+        <div class="fstep"><span class="n">STEP 3</span><b>Read info</b><span>Name, version, capabilities, instructions</span></div>
+        <div class="fstep"><span class="n">STEP 4</span><b>List what's declared</b><span>In parallel, only declared capabilities</span></div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <h3>Which capabilities did the server declare?</h3>
+          <div class="caps" id="caps">
+            <button class="btn active" data-cap="tools">🛠️ tools</button>
+            <button class="btn active" data-cap="resources">📚 resources</button>
+            <button class="btn active" data-cap="prompts">💬 prompts</button>
+          </div>
+          <div class="lbl" style="margin-top:6px">List calls the host makes</div>
+          <div class="calls" id="calls"></div>
+          <div class="rule">The store server declares all three. Switch one off to see what a smaller server gets.</div>
+        </div>
+        <div class="card">
+          <h3>The host's cached catalog</h3>
+          <pre class="json" id="catalog"></pre>
+          <p class="note">Shortened example: 10 tools, 3 prompts, 2 templates.</p>
+        </div>
+      </div>
+
+      <div class="three" style="margin-top:16px">
+        <div class="card">
+          <h3>🕰️ Two protocol eras</h3>
+          <ul class="bullets">
+            <li><b>Modern</b> (2026-07-28): no handshake. Every request carries its version in <code>_meta</code>.</li>
+            <li><code>server/discover</code> is optional for clients. Servers must implement it.</li>
+            <li><b>Legacy</b> (2025-11-25 and earlier): an <code>initialize</code> handshake.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>🤝 A dual-era client</h3>
+          <ul class="bullets">
+            <li>Over HTTP: try a modern request first. Fall back to <code>initialize</code> only on a <code>4xx</code> without a recognized modern error body.</li>
+            <li>A modern error such as <code>-32022</code> means "modern server": retry with a supported version instead.</li>
+            <li>Cache the era per server origin.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>✅ Capability-driven</h3>
+          <ul class="bullets">
+            <li>Only call what the server declared.</li>
+            <li>The store server declares <code>tools</code>, <code>prompts</code> and <code>resources</code> with <code>subscribe: true</code>.</li>
+            <li>Read the server's <code>instructions</code> too, and pass them to the model.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= REGISTRY ================= -->
+    <section class="section" id="registry">
+      <span class="step-label">💡 Learn</span>
+      <h2>The server registry</h2>
+      <p class="sub">One connection per server, one registry over all of them.</p>
+
+      <div class="three">
+        <div class="card">
+          <h3>⚙️ From config</h3>
+          <ul class="bullets">
+            <li>One entry per server, e.g. <code>{ name, url, token }</code>.</li>
+            <li>Short names like <code>store</code> and <code>crm</code>: lowercase, digits, dashes.</li>
+            <li>Reject duplicate names at startup, not at call time.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>🧯 One outage is contained</h3>
+          <ul class="bullets">
+            <li>Discover every server with <code>Promise.allSettled</code>, not <code>Promise.all</code>.</li>
+            <li>A failing server is reported and skipped. The rest keep working.</li>
+            <li>Only if <b>every</b> server fails, stop with a clear error.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>🏷️ One naming rule</h3>
+          <ul class="bullets">
+            <li>One server: plain names, <code>search_products</code>.</li>
+            <li>Two or more: every tool becomes <code>&lt;server&gt;__&lt;tool&gt;</code>.</li>
+            <li><code>__</code> fits the tool-name pattern many LLM APIs accept, <code>[a-zA-Z0-9_-]</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Connection lifecycle</h3>
+        <p class="note" style="margin:0 0 12px">Tap a state.</p>
+        <div class="states" id="states"></div>
+        <div class="state-detail" id="state-detail"></div>
+      </div>
+    </section>
+
+    <!-- ================= CALLING ================= -->
+    <section class="section" id="calling">
+      <span class="step-label">💡 Learn</span>
+      <h2>Calling operations safely</h2>
+      <p class="sub">Retry what's safe to repeat. Classify every failure before reacting.</p>
+
+      <div class="two">
+        <div class="card">
+          <h3>🔁 Retry after a dropped connection?</h3>
+          <table class="ops">
+            <thead><tr><th>Operation</th><th>Retry</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td>*/list</td><td class="yes">Yes</td><td>Reads</td></tr>
+              <tr><td>resources/read</td><td class="yes">Yes</td><td>A read</td></tr>
+              <tr><td>prompts/get</td><td class="yes">Yes</td><td>A read</td></tr>
+              <tr><td>completion/complete</td><td class="yes">Yes</td><td>A read</td></tr>
+              <tr><td>tools/call</td><td class="no">No*</td><td>A write may have landed</td></tr>
+            </tbody>
+          </table>
+          <p class="note">* Off by default. Opt in only for tools you know are read-only.</p>
+        </div>
+        <div class="card">
+          <h3>⏱️ Timeouts and cancellation</h3>
+          <ul class="bullets">
+            <li><b>Connect:</b> e.g. 10 s per attempt, up to 3 attempts with growing backoff. Never retry auth errors.</li>
+            <li><b>Request:</b> e.g. 30 s by default, configurable per host.</li>
+            <li><b>Progress resets the timer</b>, so long scans stay alive. Keep a hard maximum anyway.</li>
+            <li><b>Cancel:</b> pass an <code>AbortSignal</code>. Ch 06 covers what the server does.</li>
+            <li><b>Pagination:</b> if a list result has <code>nextCursor</code>, call again with it until it's gone.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">Classify, then react</h2>
+      <p class="sub">Sort every failure into a few kinds before reacting. An example taxonomy; tap an error.</p>
+      <div class="two">
+        <div class="card errs-card">
+          <div class="errs" id="errs"></div>
+        </div>
+        <div class="card err-detail" id="err-detail"></div>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>What should the client do?</h2>
+      <p class="sub">Six situations every MCP client meets. Pick the right move.</p>
+
+      <div class="card quiz">
+        <div class="dots" id="q-dots"></div>
+        <div class="q-case" id="q-case"></div>
+        <div class="q-opts" id="q-opts"></div>
+        <div class="fb" id="q-fb"></div>
+        <div class="q-foot"><button class="btn" id="q-next">Next →</button></div>
+      </div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="note">Use the official MCP Inspector as a client and watch discovery happen. It needs Node 22.19.0 or newer and runs through <code>npx</code>.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1 · DISCOVER A REFERENCE SERVER</span><pre class="json">npx @modelcontextprotocol/inspector \
+  npx @modelcontextprotocol/server-filesystem ~/Desktop</pre><span class="note">Look at the server info, its declared capabilities, and which tabs have content.</span></div>
+          <div class="step"><span class="n">2 · THE SAME, SCRIPTED</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+  npx @modelcontextprotocol/server-filesystem ~/Desktop \
+  --method tools/list</pre><span class="note">The raw list result. Check for a <code>nextCursor</code>.</span></div>
+          <div class="step"><span class="n">3 · A REMOTE HTTP SERVER</span><pre class="json">npx @modelcontextprotocol/inspector \
+  --server-url https://store.example.com/mcp \
+  --transport http --protocol-era auto</pre><span class="note">The store URL is illustrative. Use a server you run or can access.</span></div>
+          <div class="step"><span class="n">4 · BUILD YOUR OWN CLIENT</span><span>Follow <a href="https://modelcontextprotocol.io/docs/develop/build-client" target="_blank" rel="noopener">Build an MCP client</a>, then add a second server and apply this chapter's naming rule.</span><span class="note">Background: <a href="https://modelcontextprotocol.io/docs/learn/client-concepts" target="_blank" rel="noopener">Understanding MCP clients</a>.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li><b>Discover, don't assume:</b> only call what each server declared.</li>
+          <li>A <b>registry</b> gives the model one catalog, with <code>&lt;server&gt;__&lt;tool&gt;</code> names once several servers connect.</li>
+          <li><b>Classify every failure.</b> Retry reads, never blindly retry writes, and never retry bad credentials.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+
+    /* ---------- Explore ---------- */
+    const STORE_TOOLS = ["search_products", "get_product", "get_stock_level", "update_stock", "list_orders", "get_order", "update_order_status", "add_order_note", "get_customer", "delete_product"];
+    const CRM_TOOLS = ["get_customer", "list_tickets", "create_ticket"];
+    let crmOn = false, crmDown = false;
+    function renderExplore() {
+      const multi = crmOn;
+      const names = STORE_TOOLS.map(t => ({ name: multi ? `store__${t}` : t, crm: false, clash: multi && CRM_TOOLS.includes(t) }));
+      if (crmOn && !crmDown) CRM_TOOLS.forEach(t => names.push({ name: `crm__${t}`, crm: true, clash: STORE_TOOLS.includes(t) }));
+      $("tool-chips").innerHTML = names.map(n => `<span class="${n.crm ? "crm" : ""} ${n.clash ? "clash" : ""}">${n.name}</span>`).join("");
+      $("tool-count").textContent = names.length;
+      const pill = $("crm-pill");
+      pill.className = "pill " + (!crmOn ? "off" : crmDown ? "down" : "ok");
+      pill.textContent = !crmOn ? "not configured" : crmDown ? "down" : "connected";
+      $("crm-add").textContent = crmOn ? "➖ Remove crm" : "➕ Add crm";
+      $("crm-add").classList.toggle("active", crmOn);
+      $("crm-down").disabled = !crmOn;
+      $("crm-down").textContent = crmDown ? "🔌 Bring back" : "🔌 Take down";
+      $("crm-down").classList.toggle("active", crmDown);
+      const fail = $("crm-fail");
+      fail.hidden = !(crmOn && crmDown);
+      fail.textContent = "✖ crm: fetch failed (is the server running?)";
+      $("explore-verdict").innerHTML = !crmOn
+        ? "One server: the model sees plain names like <code>get_customer</code>."
+        : crmDown
+          ? "crm is down, so it's <b>reported and skipped</b>. The store keeps working, and its names stay namespaced because two servers are configured."
+          : "Two servers: <b>every</b> tool is prefixed with its server. Both <code>get_customer</code> tools (outlined) stay distinct, with no collision check needed.";
+    }
+    $("crm-add").onclick = () => { crmOn = !crmOn; if (!crmOn) crmDown = false; renderExplore(); };
+    $("crm-down").onclick = () => { if (crmOn) { crmDown = !crmDown; renderExplore(); } };
+    renderExplore();
+
+    /* ---------- Discovery ---------- */
+    const caps = { tools: true, resources: true, prompts: true };
+    const CALLS = [["tools/list", "tools", "client.listTools()"], ["resources/list", "resources", "client.listResources()"], ["resources/templates/list", "resources", "client.listResourceTemplates()"], ["prompts/list", "prompts", "client.listPrompts()"]];
+    function renderDiscovery() {
+      [...$("caps").children].forEach(b => b.classList.toggle("active", caps[b.dataset.cap]));
+      $("calls").innerHTML = CALLS.map(([m, cap]) => `<div class="callrow ${caps[cap] ? "on" : "skip"}">${m}<span class="st">${caps[cap] ? "✓ called" : "skipped"}</span></div>`).join("");
+      const declared = {};
+      if (caps.tools) declared.tools = { listChanged: false };
+      if (caps.prompts) declared.prompts = { listChanged: false };
+      if (caps.resources) declared.resources = { subscribe: true, listChanged: false };
+      const cat = {
+        server: "store",
+        info: { name: "lumen-leaf-store", era: "modern", capabilities: declared },
+        tools: caps.tools ? "[ …10 tools ]" : "[]",
+        resources: caps.resources ? "[ …direct resources ]" : "[]",
+        resourceTemplates: caps.resources ? "[ …2 templates ]" : "[]",
+        prompts: caps.prompts ? "[ …3 prompts ]" : "[]"
+      };
+      $("catalog").textContent = JSON.stringify(cat, null, 2).replace(/"\[ (.*?) \]"/g, "[ $1 ]").replace(/"\[\]"/g, "[]");
+    }
+    $("caps").onclick = e => { const b = e.target.closest("[data-cap]"); if (b) { caps[b.dataset.cap] = !caps[b.dataset.cap]; renderDiscovery(); } };
+    renderDiscovery();
+
+    /* ---------- Registry: lifecycle ---------- */
+    const STATES = [
+      ["idle", "Created, or the transport closed.", ["Nothing is connected yet.", "The next operation connects again.", "Also the state after every connect attempt failed."]],
+      ["connecting", "Opening the transport and connecting.", ["Pick the protocol era: modern first, legacy fallback if needed.", "Credentials go in the <code>Authorization</code> header.", "Concurrent callers share one in-flight connect."]],
+      ["connected", "Ready for operations.", ["Version, era and capabilities are known and cached.", "Notification handlers are attached.", "Every operation goes through one guarded path."]],
+      ["reconnecting", "A read failed with a transient error.", ["Only for operations marked safe to retry.", "Drop the old connection, connect fresh, run the operation once more.", "Re-attach notification handlers on the new connection."]],
+      ["closed", "Shut down on purpose.", ["The host closes every connection on exit.", "A closed connection refuses to connect again.", "No state change can leave <code>closed</code>."]],
+    ];
+    let stateI = 2;
+    function renderStates() {
+      $("states").innerHTML = STATES.map(([s], i) => `<button class="btn ${i === stateI ? "active" : ""}" data-st="${i}">${s}</button>`).join("");
+      const [s, d, pts] = STATES[stateI];
+      $("state-detail").innerHTML = `<h3>${s}</h3><p style="margin:0 0 8px">${d}</p><ul class="bullets">${pts.map(p => `<li>${p}</li>`).join("")}</ul>`;
+    }
+    $("states").onclick = e => { const b = e.target.closest("[data-st]"); if (b) { stateI = +b.dataset.st; renderStates(); } };
+    renderStates();
+
+    /* ---------- Calling: error classes ---------- */
+    const ERRS = [
+      ["HTTP 401", "auth", "Fix the credentials.", ["Never retried: a retry can't fix a bad token.", "Tell the user which setting to check.", "HTTP 403 is classed the same way."]],
+      ["ECONNREFUSED", "transient", "Reconnecting may help.", ["The server isn't reachable right now.", "Connects retry with backoff; reads retry once after reconnecting.", "Hint: <code>(is the server running?)</code>"]],
+      ["ConnectionClosed", "transient", "Reconnecting may help.", ["The transport dropped mid-session.", "Reads reconnect and run again.", "Tool calls don't, by default."]],
+      ["RequestTimeout", "timeout", "The call may still have run.", ["The client stopped waiting; the server may have finished.", "Don't blindly retry a write. Check state first.", "Progress notifications reset the timer."]],
+      ["JSON-RPC -32601", "protocol", "Don't retry. Change the request.", ["The server understood and refused: method not found.", "Usually a capability or version mismatch.", "Same class for -32602 invalid params."]],
+      ["Unexpected error", "unknown", "Surface it; don't guess.", ["Anything that matches no rule above.", "Still show a readable message, not a stack trace.", "Classify wrapped errors by their underlying cause."]],
+    ];
+    let errI = 0;
+    function renderErrs() {
+      $("errs").innerHTML = ERRS.map(([e], i) => `<button class="btn ${i === errI ? "active" : ""}" data-er="${i}">${e}</button>`).join("");
+      const [e, kind, act, pts] = ERRS[errI];
+      $("err-detail").innerHTML = `<div><span class="kind">${kind}</span></div><h3 style="margin:0">${act}</h3><ul class="bullets">${pts.map(p => `<li>${p}</li>`).join("")}</ul>`;
+    }
+    $("errs").onclick = e => { const b = e.target.closest("[data-er]"); if (b) { errI = +b.dataset.er; renderErrs(); } };
+    renderErrs();
+
+    /* ---------- Try ---------- */
+    const QUIZ = [
+      ["The server's capabilities have no <code>prompts</code>.", ["Call prompts/list anyway and ignore errors", "Skip prompts/list and show no prompts", "Disconnect: the server is broken"], 1, "Discovery is capability-driven. Only list what the server declared."],
+      ["Two connected servers both expose <code>get_customer</code>.", ["Keep the first one and drop the other", "Ask the user which one to keep", "Use <code>store__get_customer</code> and <code>crm__get_customer</code>"], 2, "With more than one server, prefix every tool with its server name so names never collide. The spec says aggregating clients SHOULD disambiguate names."],
+      ["<code>tools/list</code> returns a <code>nextCursor</code>.", ["Call tools/list again with that cursor until none is returned", "Ignore it: the first page is enough", "Treat it as an error"], 0, "Lists can be paginated. Keep following <code>nextCursor</code> until the result has none."],
+      ["<code>update_stock</code> times out after 30 s.", ["Retry immediately, up to 3 times", "Report it, and check the stock before trying again", "Assume it failed and move on silently"], 1, "A timeout means the client stopped waiting. The write may have landed, so re-check state instead of repeating it."],
+      ["Connecting returns HTTP 401.", ["Retry with backoff", "Stop and fix the token: retrying can't help", "Switch to the legacy protocol"], 1, "Auth failures are never retried. Tell the user which credential to check."],
+      ["A call returns JSON-RPC error <code>-32601</code>, method not found.", ["Retry after a reconnect", "Don't retry: check the server's capabilities and version", "Clear the cache and rediscover every minute"], 1, "It's a protocol error: the server understood and refused. Repeating the same request gets the same answer."],
+    ];
+    let qI = 0, qRes = [], qPicked = null;
+    function renderQuiz() {
+      $("q-dots").innerHTML = QUIZ.map((_, i) => `<i class="${qRes[i] === true ? "good" : qRes[i] === false ? "bad" : ""}"></i>`).join("");
+      if (qI >= QUIZ.length) {
+        const score = qRes.filter(Boolean).length;
+        $("q-case").innerHTML = `${score === QUIZ.length ? "🏆" : "👀"} ${score} / ${QUIZ.length} correct`;
+        $("q-opts").innerHTML = "";
+        $("q-fb").textContent = "Discover, namespace, classify: that's most of a robust client.";
+        $("q-next").textContent = "↺ Try again";
+        return;
+      }
+      const [c, opts, ans, why] = QUIZ[qI];
+      $("q-case").innerHTML = c;
+      $("q-opts").innerHTML = opts.map((o, i) => {
+        const cls = qPicked === null ? "" : i === ans ? "right" : i === qPicked ? "wrong" : "";
+        return `<button class="btn ${cls}" data-o="${i}" ${qPicked !== null ? "disabled" : ""}>${o}</button>`;
+      }).join("");
+      $("q-fb").innerHTML = qPicked === null ? "Pick one." : `${qPicked === ans ? '<b class="good">✓ Right.</b>' : '<b class="bad">✗ Not quite.</b>'} ${why}`;
+      $("q-next").textContent = "Next →";
+      $("q-next").disabled = qPicked === null;
+    }
+    $("q-opts").onclick = e => {
+      const b = e.target.closest("[data-o]");
+      if (!b || qPicked !== null) return;
+      qPicked = +b.dataset.o;
+      qRes[qI] = qPicked === QUIZ[qI][2];
+      renderQuiz();
+    };
+    $("q-next").onclick = () => {
+      if (qI >= QUIZ.length) { qI = 0; qRes = []; }
+      else if (qPicked === null) return;
+      else qI++;
+      qPicked = null; $("q-next").disabled = false; renderQuiz();
+    };
+    renderQuiz();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["🔎 Capability-driven discovery", "discovery", "<code>if (caps.tools) tools = await listAll('tools/list')</code> · pseudocode, one list per declared capability", "Calling a list method the server never declared, then treating <code>-32601</code> as an outage", "In the Inspector, compare the declared capabilities with which tabs have content"],
+      ["🏷️ Namespacing tool names", "naming", "<code>name = servers.length > 1 ? server + '__' + tool : tool</code> · pseudocode", "Prefixing only when a clash appears: names then change as servers come and go, and the model's history breaks", "Connect two servers that both expose <code>get_customer</code>: the model must see two distinct names"],
+      ["🧯 Containing an outage", "registry", "<code>await Promise.allSettled(servers.map(discover))</code>", "<code>Promise.all</code>: one dead server takes every server down with it", "Stop one server and rediscover: the others still list their tools"],
+      ["📄 Following cursors", "pagination", "<code>do { page = await list(cursor); items.push(...page.items); cursor = page.nextCursor } while (cursor)</code> · pseudocode", "Stopping at the first page silently hides tools from the model", "Run the Inspector CLI with <code>--method tools/list</code> and look for <code>nextCursor</code>"],
+      ["🔁 Safe retries", "retries", "<code>retry = op.isRead && kind === 'transient'</code> · pseudocode", "Retrying <code>tools/call</code> after a timeout can apply a write twice", "Drop the connection mid-read and mid-write: the read runs once more, the write is only reported"],
+      ["🚦 Classifying failures", "errors", "<code>kind = [401, 403].includes(status) ? 'auth' : …</code> · pseudocode", "Retrying a 401 with backoff hides a configuration problem behind a slow failure", "Give the client a wrong token: it should stop at once with a clear message"],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, tag, code, trap, check]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="file">${tag}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${trap}</p>
+          <div class="lbl">Verify</div><p>${check}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(7);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

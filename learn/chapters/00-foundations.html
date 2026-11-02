@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Foundations · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .note { font-size: 13px; color: var(--muted); }
+    .lbl-sm { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
+    .pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+    .pill.good { background: var(--good-soft); color: var(--good); }
+    .pill.bad { background: var(--bad-soft); color: var(--bad); }
+    .pill.acc { background: var(--accent-soft); color: var(--accent); }
+
+    /* ---------- Explore: N x M ---------- */
+    .nm { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .nm { grid-template-columns: 1fr; } }
+    .nm > .card:first-child { display: flex; align-items: center; }
+    .nm-svg { width: 100%; height: auto; display: block; }
+    .nm-svg line { stroke: var(--line); stroke-width: 1.5; transition: stroke .3s; }
+    .nm-svg line.hot { stroke: var(--bad); }
+    .nm-svg line.ok { stroke: var(--accent); stroke-width: 2.5; }
+    .nm-svg .node rect { fill: var(--surface-2); stroke: var(--line); }
+    .nm-svg .node text { fill: var(--text); font: 600 12px system-ui, sans-serif; }
+    .nm-svg .hub circle { fill: var(--accent); }
+    .nm-svg .hub text { fill: #fff; font: 800 13px system-ui, sans-serif; }
+    .nm-svg .col-lbl { fill: var(--muted); font: 800 11px system-ui, sans-serif; letter-spacing: .08em; }
+    .nm-side { display: flex; flex-direction: column; gap: 14px; }
+    .stepper-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .stepper-row .name { font-weight: 700; }
+    .step { display: flex; align-items: center; gap: 8px; }
+    .step .btn { width: 44px; height: 44px; padding: 0; font-size: 20px; }
+    .step b { min-width: 24px; text-align: center; font-size: 18px; }
+    .big { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+    .big.bad { color: var(--bad); }
+    .big.good { color: var(--good); }
+    .formula { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* ---------- Roles diagram ---------- */
+    .arch { display: grid; grid-template-columns: minmax(0, 1.5fr) auto minmax(0, 1fr) auto minmax(0, .8fr); gap: 10px; align-items: center; }
+    @media (max-width: 760px) { .arch { grid-template-columns: 1fr; } .arch .arrow { transform: rotate(90deg); justify-self: center; } }
+    .arch .arrow { color: var(--muted); font-size: 22px; text-align: center; }
+    .zone { border: 2px dashed var(--line); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .zone .zone-lbl { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .zone-inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .node-btn { font: inherit; cursor: pointer; text-align: left; min-height: 56px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); transition: border-color .2s, background .2s; display: flex; flex-direction: column; justify-content: center; }
+    .node-btn b { font-size: 15px; }
+    .node-btn span { font-size: 12px; color: var(--muted); }
+    .node-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .node-btn.wide { grid-column: 1 / -1; }
+    .role-panel { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 760px) { .role-panel { grid-template-columns: 1fr; } }
+    .role-panel h3 { margin: 0 0 4px; grid-column: 1 / -1; font-size: 22px; }
+    .role-panel .tagline { grid-column: 1 / -1; color: var(--muted); margin-top: -8px; }
+    .role-panel h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+
+    /* ---------- Primitives ---------- */
+    .prims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .prims { grid-template-columns: 1fr; } }
+    .prim { display: flex; flex-direction: column; gap: 10px; }
+    .prim .icon { font-size: 30px; }
+    .prim h3 { margin: 0; }
+    .prim .ctrl { font-weight: 700; }
+    .prim .ex { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+    .prim .ex code { display: block; background: var(--surface-2); border-radius: 8px; padding: 6px 10px; overflow-wrap: break-word; }
+    .cfeat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+    @media (max-width: 700px) { .cfeat { grid-template-columns: 1fr; } }
+    .cfeat .card { display: flex; flex-direction: column; gap: 8px; }
+    .cfeat h4 { margin: 0; font-size: 17px; }
+
+    .cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+    .cmp th, .cmp td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .cmp th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .cmp th.mcp, .cmp td.mcp { background: var(--accent-soft); }
+    .cmp tr:last-child td { border-bottom: 0; }
+    .cmp-wrap { overflow-x: auto; }
+
+    /* ---------- Try ---------- */
+    .quiz { max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; gap: 14px; }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-txt { font-size: 21px; font-weight: 700; min-height: 64px; display: grid; place-items: center; }
+    .answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .answers .btn { min-height: 52px; font-size: 16px; }
+    .answers .btn.right { border-color: var(--good); background: var(--good-soft); }
+    .answers .btn.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .fb { min-height: 64px; font-size: 15px; text-align: left; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+    .fb.hint { text-align: center; color: var(--muted); }
+    .q-foot { display: flex; justify-content: center; gap: 10px; }
+    .q-foot .btn { min-height: 44px; }
+
+    .run { margin: 24px auto 0; max-width: 680px; }
+    .run h4 { margin: 0 0 4px; font-size: 16px; }
+    .run pre { margin: 10px 0 0; background: var(--surface-2); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .run pre .c { color: var(--muted); }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 19px; font-weight: 700; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 00 Foundations</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 00 · Foundations</div>
+      <h1>One protocol.<br>Every tool.</h1>
+      <p>What MCP is, who talks to whom, and why it beats one-off integrations.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#roles">💡 Roles</a>
+        <a href="#primitives">🧱 Primitives</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>The N × M problem</h2>
+      <p class="sub">Every AI app wants every data source. Add apps and sources, then flip the switch.</p>
+
+      <div class="seg" id="nm-mode" style="margin-bottom:16px">
+        <button class="btn active" data-mode="0">🧶 Without MCP</button>
+        <button class="btn" data-mode="1">🔌 With MCP</button>
+      </div>
+
+      <div class="nm">
+        <div class="card"><svg class="nm-svg" id="nm-svg" viewBox="0 0 420 300" role="img" aria-label="Connections between AI apps and data sources"></svg></div>
+        <div class="card nm-side">
+          <div class="stepper-row"><span class="name">🤖 AI apps</span>
+            <div class="step"><button class="btn" data-step="apps" data-d="-1" aria-label="Fewer apps">−</button><b id="n-apps">3</b><button class="btn" data-step="apps" data-d="1" aria-label="More apps">+</button></div></div>
+          <div class="stepper-row"><span class="name">🗄️ Data sources</span>
+            <div class="step"><button class="btn" data-step="src" data-d="-1" aria-label="Fewer sources">−</button><b id="n-src">4</b><button class="btn" data-step="src" data-d="1" aria-label="More sources">+</button></div></div>
+          <div>
+            <div class="lbl-sm">Integrations to build</div>
+            <div class="big bad" id="nm-count">12</div>
+            <div class="formula" id="nm-formula">apps × sources = 3 × 4</div>
+          </div>
+          <ul class="bullets" id="nm-notes"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ROLES ================= -->
+    <section class="section" id="roles">
+      <span class="step-label">💡 Learn</span>
+      <h2>Host, client, server</h2>
+      <p class="sub">The Lumen &amp; Leaf shop assistant, drawn the MCP way. Tap any box.</p>
+
+      <div class="card">
+        <div class="arch" id="arch">
+          <div class="zone">
+            <div class="zone-lbl">AI host · the shop assistant</div>
+            <div class="zone-inner">
+              <button class="node-btn" data-n="host"><b>🖥️ Host</b><span>Agent loop + approval</span></button>
+              <button class="node-btn" data-n="llm"><b>🧠 LLM</b><span>Any provider, via the host</span></button>
+              <button class="node-btn wide" data-n="client"><b>🔗 MCP client</b><span>One per server connection</span></button>
+            </div>
+          </div>
+          <div class="arrow" aria-hidden="true">⇄</div>
+          <button class="node-btn" data-n="server"><b>🛠️ MCP server</b><span>The store server</span></button>
+          <div class="arrow" aria-hidden="true">⇄</div>
+          <button class="node-btn" data-n="store"><b>🛒 Store backend</b><span>Its own REST API</span></button>
+        </div>
+        <div class="role-panel" id="role-panel"></div>
+      </div>
+    </section>
+
+    <!-- ================= PRIMITIVES ================= -->
+    <section class="section" id="primitives">
+      <span class="step-label">🧱 Primitives</span>
+      <h2>Three things a server offers</h2>
+      <p class="sub">The difference is <b>who decides</b> to use them.</p>
+
+      <div class="prims">
+        <div class="card prim">
+          <div class="icon">🛠️</div>
+          <h3>Tools</h3>
+          <div class="ctrl"><span class="pill acc">Model-controlled</span></div>
+          <ul class="bullets">
+            <li>Functions the LLM can call to act or fetch</li>
+            <li>Typed input and output schemas</li>
+            <li>Need user consent before running</li>
+          </ul>
+          <div class="ex"><div class="lbl-sm">In the example store</div><code>search_products</code><code>update_stock</code></div>
+        </div>
+        <div class="card prim">
+          <div class="icon">📚</div>
+          <h3>Resources</h3>
+          <div class="ctrl"><span class="pill acc">Application-controlled</span></div>
+          <ul class="bullets">
+            <li>Data the app attaches as context</li>
+            <li>Addressed by a URI</li>
+            <li>Templates fill in IDs, e.g. a product</li>
+          </ul>
+          <div class="ex"><div class="lbl-sm">In the example store</div><code>shop://<wbr>store/<wbr>info</code><code>shop://<wbr>products/<wbr>{productId}</code></div>
+        </div>
+        <div class="card prim">
+          <div class="icon">💬</div>
+          <h3>Prompts</h3>
+          <div class="ctrl"><span class="pill acc">User-controlled</span></div>
+          <ul class="bullets">
+            <li>Templates the user picks, like a slash command</li>
+            <li>Take arguments</li>
+            <li>Can embed live data</li>
+          </ul>
+          <div class="ex"><div class="lbl-sm">In the example store</div><code>draft_customer_reply</code><code>summarize_sales</code></div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">What a client can offer back</h2>
+      <p class="sub">Servers ask the client for input. In the 2026-07-28 revision, two of these are deprecated.</p>
+      <div class="cfeat">
+        <div class="card"><h4>🙋 Elicitation <span class="pill good">Current</span></h4>
+          <ul class="bullets"><li>Server asks the user for missing info</li><li>e.g. "Which warehouse?"</li></ul></div>
+        <div class="card"><h4>🧠 Sampling <span class="pill bad">Deprecated</span></h4>
+          <ul class="bullets"><li>Server asked the client's LLM to generate text</li><li>Now: call an LLM provider directly</li></ul></div>
+        <div class="card"><h4>📁 Roots <span class="pill bad">Deprecated</span></h4>
+          <ul class="bullets"><li>Client told the server which folders matter</li><li>Now: pass paths via tool inputs, URIs or config</li></ul></div>
+      </div>
+      <p class="note" style="margin-top:10px">A simple store server needs none of these. Source: MCP spec 2026-07-28, deprecated features registry.</p>
+
+      <h2 style="margin-top:40px">MCP vs REST vs function calling</h2>
+      <p class="sub">MCP doesn't replace REST. The store server still calls the store's own API over REST.</p>
+      <div class="card cmp-wrap">
+        <table class="cmp">
+          <thead><tr><th></th><th>REST API</th><th>LLM function calling</th><th class="mcp">MCP</th></tr></thead>
+          <tbody>
+            <tr><td><b>Built for</b></td><td>Apps calling services</td><td>One LLM calling an app's functions</td><td class="mcp">Any AI host using any server</td></tr>
+            <tr><td><b>Discovery</b></td><td>Docs or optional OpenAPI</td><td>You hand-write each schema</td><td class="mcp"><code>tools/list</code>, <code>resources/list</code>, <code>prompts/list</code></td></tr>
+            <tr><td><b>Portable</b></td><td>Per API</td><td>Per LLM vendor format</td><td class="mcp">One server, many hosts</td></tr>
+            <tr><td><b>Context, not just actions</b></td><td>✗</td><td>✗</td><td class="mcp">Resources and prompts</td></tr>
+            <tr><td><b>Consent model</b></td><td>Your app's job</td><td>Your app's job</td><td class="mcp">Spec says hosts must get user consent</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:10px">A host often uses both: MCP to reach servers, then hands their tools to its LLM as function calls (Chapter 08).</p>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Tool, resource or prompt?</h2>
+      <p class="sub">8 capabilities of the Lumen &amp; Leaf store server. Ask: who decides to use it?</p>
+      <div class="card quiz" id="quiz"></div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <div class="note">Open a real MCP server and see its tools, resources and prompts. Needs Node 22.19+.</div>
+<pre><span class="c"># the official MCP Inspector, in your browser</span>
+npx @modelcontextprotocol/inspector
+
+<span class="c"># point it at an official reference server</span>
+npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-filesystem ~/Desktop
+
+<span class="c"># or at a remote server you built</span>
+npx @modelcontextprotocol/inspector --server-url https://your-host.example/mcp --transport http --protocol-era auto</pre>
+        <div class="note" style="margin-top:10px">Next steps: <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server" target="_blank" rel="noopener">Build a server</a> · <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-client" target="_blank" rel="noopener">Build a client</a> · <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">Inspector docs</a></div>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>MCP turns <b>N × M</b> custom integrations into <b>N + M</b>.</li>
+          <li><b>Host</b> runs the AI and owns consent. Each <b>client</b> talks to exactly one <b>server</b>.</li>
+          <li>Tools are model-controlled, resources app-controlled, prompts user-controlled.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = (id) => document.getElementById(id);
+
+    /* ---------- Explore: N x M ---------- */
+    const nm = { apps: 3, src: 4, mode: 0 };
+    const APP_NAMES = ["Chat app", "IDE", "Support bot", "Agent", "Desktop AI", "Voice"];
+    const SRC_NAMES = ["Store", "CRM", "Docs", "Email", "Database", "Calendar"];
+    function renderNm() {
+      const { apps, src, mode } = nm;
+      const W = 420, H = 300, top = 40, gap = (n) => (H - top - 20) / n;
+      const ay = (i) => top + gap(apps) * (i + .5), sy = (i) => top + gap(src) * (i + .5);
+      const node = (x, y, label) => `<g class="node"><rect x="${x - 50}" y="${y - 15}" width="100" height="30" rx="8"/><text x="${x}" y="${y + 4}" text-anchor="middle">${label}</text></g>`;
+      let lines = "";
+      if (mode === 0) {
+        for (let i = 0; i < apps; i++) for (let j = 0; j < src; j++)
+          lines += `<line class="hot" x1="110" y1="${ay(i)}" x2="310" y2="${sy(j)}"/>`;
+      } else {
+        for (let i = 0; i < apps; i++) lines += `<line class="ok" x1="110" y1="${ay(i)}" x2="210" y2="${(H + top - 20) / 2}"/>`;
+        for (let j = 0; j < src; j++) lines += `<line class="ok" x1="210" y1="${(H + top - 20) / 2}" x2="310" y2="${sy(j)}"/>`;
+      }
+      const hub = mode === 1 ? `<g class="hub"><circle cx="210" cy="${(H + top - 20) / 2}" r="26"/><text x="210" y="${(H + top - 20) / 2 + 5}" text-anchor="middle">MCP</text></g>` : "";
+      $("nm-svg").innerHTML = `
+        <text class="col-lbl" x="60" y="20" text-anchor="middle">AI APPS</text>
+        <text class="col-lbl" x="360" y="20" text-anchor="middle">DATA SOURCES</text>
+        ${lines}${hub}
+        ${Array.from({ length: apps }, (_, i) => node(60, ay(i), APP_NAMES[i])).join("")}
+        ${Array.from({ length: src }, (_, j) => node(360, sy(j), SRC_NAMES[j])).join("")}`;
+      $("n-apps").textContent = apps;
+      $("n-src").textContent = src;
+      const count = mode === 0 ? apps * src : apps + src;
+      $("nm-count").textContent = count;
+      $("nm-count").className = "big " + (mode === 0 ? "bad" : "good");
+      $("nm-formula").textContent = mode === 0 ? `apps × sources = ${apps} × ${src}` : `apps + sources = ${apps} + ${src}`;
+      $("nm-notes").innerHTML = (mode === 0
+        ? ["Each pair needs its own connector", "Every new app re-integrates every source", "Fixes and auth logic get copied N times"]
+        : ["Each app speaks MCP once (a client)", "Each source is wrapped once (a server)", "New app? It can use every existing server"]
+      ).map((t) => `<li>${t}</li>`).join("");
+      document.querySelectorAll("#nm-mode .btn").forEach((b) => b.classList.toggle("active", +b.dataset.mode === mode));
+    }
+    $("explore").addEventListener("click", (e) => {
+      const m = e.target.closest("[data-mode]");
+      const s = e.target.closest("[data-step]");
+      if (m) nm.mode = +m.dataset.mode;
+      if (s) nm[s.dataset.step] = Math.min(6, Math.max(1, nm[s.dataset.step] + +s.dataset.d));
+      if (m || s) renderNm();
+    });
+    renderNm();
+
+    /* ---------- Roles ---------- */
+    const ROLES = {
+      host: { t: "🖥️ Host", tag: "The LLM application that starts connections",
+        does: ["Creates and manages MCP clients", "Owns user consent and approval", "Talks to the LLM and gathers context"],
+        ex: ["The shop assistant: a chat app for store staff", "Runs the agent loop and asks staff before any change", "Connects to the store server, and maybe others"],
+        rule: ["Servers never see the whole conversation", "The host decides what reaches each server"] },
+      llm: { t: "🧠 LLM", tag: "Plans and picks tools; never talks to servers itself",
+        does: ["Reads tool schemas from the host", "Asks for tool calls", "Writes the final answer"],
+        ex: ["Any model provider the host chooses", "Sees only the tool schemas the host passes along", "Never holds store credentials"],
+        rule: ["A model's tool call is not approval", "The host still asks the human"] },
+      client: { t: "🔗 MCP client", tag: "A connector inside the host, one per server",
+        does: ["Talks to exactly one server", "Attaches protocol version and capabilities to every request", "Handles notifications and subscriptions"],
+        ex: ["One client inside the assistant for the store server", "A second server, say email, means a second client", "The host keeps the two clients apart"],
+        rule: ["Many servers means many clients", "Same tool name on two servers? The host must tell them apart"] },
+      server: { t: "🛠️ MCP server", tag: "Exposes tools, resources and prompts",
+        does: ["Advertises its capabilities", "Runs tools, serves resources, renders prompts", "Can be a local process or a remote service"],
+        ex: ["The store server at https://store.example.com/mcp", "10 tools, store and catalog resources, 3 prompts", "Speaks Streamable HTTP"],
+        rule: ["Checks the caller's scopes on every call", "An input schema is not authorization"] },
+      store: { t: "🛒 Store backend", tag: "Not MCP: the system the server wraps",
+        does: ["Remains the source of truth", "Serves the REST API", "Holds products, orders, customers"],
+        ex: ["Lumen &amp; Leaf's shop platform", "Only the store server holds its API key", "Swap it out and hosts never notice"],
+        rule: ["Store credentials never reach the model", "Errors about them stay generic"] },
+    };
+    let role = "host";
+    function renderRole() {
+      document.querySelectorAll("#arch .node-btn").forEach((b) => b.classList.toggle("active", b.dataset.n === role));
+      const r = ROLES[role], list = (a) => `<ul class="bullets">${a.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+      $("role-panel").innerHTML = `<h3>${r.t}</h3><div class="tagline">${r.tag}</div>
+        <div><h4>Does</h4>${list(r.does)}</div>
+        <div><h4>In the example</h4>${list(r.ex)}</div>
+        <div><h4>Rule of thumb</h4>${list(r.rule)}</div>`;
+    }
+    $("arch").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-n]");
+      if (b) { role = b.dataset.n; renderRole(); }
+    });
+    renderRole();
+
+    /* ---------- Try ---------- */
+    const QUIZ = [
+      ["Lower the Linen Apron's stock to 12 when the model decides it should", "Tool", "An action the model chooses to take. In the example: update_stock."],
+      ["The store's currency, timezone and settings, attached as context", "Resource", "Read-only data the app attaches. In the example: shop://store/settings."],
+      ["A \"reply to this customer\" workflow the operator picks from a menu", "Prompt", "The user chooses it, like a slash command. In the example: draft_customer_reply."],
+      ["One product's details, fetched by URI so the app can show it", "Resource", "A resource template: shop://products/{productId}."],
+      ["Mark an order as completed", "Tool", "It changes data, so it's a model-invoked action that needs approval: update_order_status."],
+      ["\"Summarize this month's sales\", started by the user as a command", "Prompt", "User-triggered template with live data: summarize_sales."],
+      ["Search the catalog for \"blue mug\" when the model needs to", "Tool", "The model decides when to search: search_products."],
+      ["A snapshot of the whole product catalog", "Resource", "Context the app can read and subscribe to: shop://catalog."],
+    ];
+    const qs = { i: 0, picked: null, results: [] };
+    function renderQuiz() {
+      const dots = QUIZ.map((_, k) => `<i class="${qs.results[k] === true ? "good" : qs.results[k] === false ? "bad" : ""}"></i>`).join("");
+      if (qs.i >= QUIZ.length) {
+        const score = qs.results.filter(Boolean).length;
+        $("quiz").innerHTML = `<div class="dots">${dots}</div>
+          <div class="q-txt">${score >= 7 ? "🏆" : score >= 5 ? "👍" : "🌱"} ${score} / ${QUIZ.length}</div>
+          <div class="fb hint">Rule: model decides → tool · app attaches → resource · user picks → prompt</div>
+          <div class="q-foot"><button class="btn primary" data-retry>Try again</button></div>`;
+        return;
+      }
+      const [q, ans, why] = QUIZ[qs.i];
+      const opts = ["Tool", "Resource", "Prompt"].map((o) => {
+        let cls = "";
+        if (qs.picked) cls = o === ans ? "right" : o === qs.picked ? "wrong" : "";
+        return `<button class="btn ${cls}" data-a="${o}" ${qs.picked ? "disabled" : ""}>${{ Tool: "🛠️", Resource: "📚", Prompt: "💬" }[o]} ${o}</button>`;
+      }).join("");
+      $("quiz").innerHTML = `<div class="dots">${dots}</div>
+        <div class="q-txt">${q}</div>
+        <div class="answers">${opts}</div>
+        <div class="fb ${qs.picked ? "" : "hint"}">${qs.picked ? `<b>${qs.picked === ans ? "✓ Right." : `✗ It's a ${ans.toLowerCase()}.`}</b> ${why}` : "Who decides to use it: the model, the app or the user?"}</div>
+        <div class="q-foot"><button class="btn" data-next ${qs.picked ? "" : "disabled"}>${qs.i === QUIZ.length - 1 ? "See score" : "Next →"}</button></div>`;
+    }
+    $("quiz").addEventListener("click", (e) => {
+      const a = e.target.closest("[data-a]");
+      if (a && !qs.picked) { qs.picked = a.dataset.a; qs.results[qs.i] = qs.picked === QUIZ[qs.i][1]; renderQuiz(); }
+      if (e.target.closest("[data-next]") && qs.picked) { qs.i++; qs.picked = null; renderQuiz(); }
+      if (e.target.closest("[data-retry]")) { qs.i = 0; qs.picked = null; qs.results = []; renderQuiz(); }
+    });
+    renderQuiz();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["Create a server", "TypeScript SDK: <code>const server = new McpServer({ name: \"store\", version: \"1.0.0\" });</code>", "A vague or duplicated name. Hosts show it to users and it lands in every log.", "Run it under the Inspector and check the server info it reports."],
+      ["Expose a tool", "TypeScript SDK: <code>server.registerTool(\"get_stock_level\", { description, inputSchema: z.object({ productId: z.number() }) }, async ({ productId }) =&gt; ({ content: [...] }));</code>", "A one-word description. The model picks tools by reading it, so say what it does and when to use it.", "Inspector → Tools: list it, then call it with a real and a bad <code>productId</code>."],
+      ["Expose a resource", "Pseudocode: <code>registerResource(\"store-info\", \"shop://store/info\", read)</code> returning <code>{ contents: [{ uri, mimeType, text }] }</code>", "Hiding actions in a resource. Reading must never change anything.", "Inspector → Resources: read <code>shop://store/info</code> and check the MIME type."],
+      ["Offer a prompt", "Pseudocode: <code>registerPrompt(\"draft_customer_reply\", { arguments }, render)</code> returning a list of messages", "Running prompts on your own. Prompts are user-controlled: the user picks one.", "Inspector → Prompts: get it with arguments and read the messages it returns."],
+      ["Connect a client", "TypeScript SDK: <code>const client = new Client({ name: \"shop-assistant\", version: \"1.0.0\" }); await client.connect(transport); await client.listTools();</code>", "Sharing one client between servers. Each server gets its own client.", "Log the tool names after <code>listTools()</code>. They should match what the Inspector shows."],
+      ["Keep the human in charge", "Pseudocode: <code>if (isWrite(tool) &amp;&amp; !(await askUser(call))) return declined();</code> before <code>client.callTool(...)</code>", "Treating the model's tool call as permission. The host must ask.", "Ask the assistant to change stock. It must show the call and wait for a yes."],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([q, code, trap, check]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${q}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${trap}</p>
+          <div class="lbl">Verify</div><p>${check}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(0);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <title>MCP/LEARN</title>
+  <meta name="description" content="A hands-on journey into the Model Context Protocol: servers, clients, agents and production. 14 interactive chapters.">
+  <meta property="og:title" content="MCP/LEARN · Connect. Build. Ship.">
+  <meta property="og:description" content="14 interactive chapters on building MCP servers, clients and agents.">
+  <meta property="og:image" content="https://explore-mcp.netlify.app/assets/screenshots/journey-map.png">
+  <meta property="og:url" content="https://explore-mcp.netlify.app/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="assets/style.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="index.html">MCP<span>/</span>LEARN</a>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">An engineer's path into AI integrations</div>
+      <h1>Connect. Build. Ship.</h1>
+      <p>14 stops, each one hands-on. Learn to build MCP servers, clients and agents that work.</p>
+      <div class="stepper" style="margin-top:20px">
+        <span>🧭 Explore</span><span>💡 Learn</span><span>🛠️ Try</span><span>🔧 Builder's Lens</span>
+      </div>
+    </section>
+
+    <div class="jm-legend">
+      <span class="l-ready">Available</span>
+      <span class="l-done">Completed</span>
+      <span class="l-locked">Coming soon</span>
+    </div>
+
+    <div class="jm-map" id="map"></div>
+  </main>
+
+  <footer class="footer">Built step by step · Progress is saved in your browser</footer>
+
+  <script type="text/page-script">
+    // Only show "Coming soon" in the legend while some chapters are still locked
+    if (CHAPTERS.every((c) => c.ready)) document.querySelector(".l-locked")?.remove();
+
+    if (getDone().length) {
+      const reset = document.createElement("button");
+      reset.className = "jm-reset";
+      reset.textContent = "↺ Reset progress";
+      reset.addEventListener("click", () => {
+        if (confirm("Reset progress for every chapter?")) { resetDone(); location.reload(); }
+      });
+      document.querySelector(".jm-legend").appendChild(reset);
+    }
+
+    const map = document.getElementById("map");
+    const done = getDone();
+    const STEP = 130;            // vertical distance between stops
+    const W = 1000;              // virtual width for the path
+    const H = STEP * CHAPTERS.length + 40;
+    map.style.height = H + "px";
+
+    // Winding positions: x swings left/right like a trail
+    const pts = CHAPTERS.map((c, i) => ({ x: 500 + Math.sin(i * 1.15) * 280, y: 60 + i * STEP }));
+
+    // Smooth path through all points
+    const pathFor = (list) => list.reduce((d, p, i) => {
+      if (i === 0) return `M ${p.x} ${p.y}`;
+      const prev = list[i - 1], midY = (prev.y + p.y) / 2;
+      return `${d} C ${prev.x} ${midY}, ${p.x} ${midY}, ${p.x} ${p.y}`;
+    }, "");
+
+    // Highlighted trail runs up to the furthest completed chapter
+    const furthest = Math.max(-1, ...done);
+    map.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <path class="trail" d="${pathFor(pts)}" vector-effect="non-scaling-stroke"/>
+        ${furthest >= 0 ? `<path class="trail-done" d="${pathFor(pts.slice(0, furthest + 2))}" vector-effect="non-scaling-stroke"/>` : ""}
+      </svg>`;
+
+    CHAPTERS.forEach((c, i) => {
+      const p = pts[i];
+      const isDone = done.includes(c.id);
+      const el = document.createElement(c.ready ? "a" : "div");
+      if (c.ready) el.href = chapterUrl(c);
+      // Labels point toward the center so they stay on screen
+      const side = p.x > 500 ? "right" : "left";
+      el.className = `jm-stop ${side} ${isDone ? "done" : c.ready ? "ready" : "locked"}`;
+      el.style.left = (p.x / W * 100) + "%";
+      el.style.top = p.y + "px";
+      // Nudge the node itself onto the trail point
+      el.style.transform = side === "left" ? "translate(-32px, -50%)" : "translate(calc(-100% + 32px), -50%)";
+      el.innerHTML = `
+        <div class="jm-node">${isDone ? "✅" : c.emoji}</div>
+        <div class="label">
+          <div class="num">CHAPTER ${String(c.id).padStart(2, "0")}</div>
+          <div class="ttl">${c.title}</div>
+          <div class="tg">${c.tag}</div>
+          ${c.ready ? "" : `<span class="badge">Coming soon</span>`}
+        </div>`;
+      map.appendChild(el);
+    });
+  </script>
+  <script src="assets/app.js?v=2"></script>
+</body>
+</html>

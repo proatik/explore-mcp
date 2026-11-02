@@ -1,0 +1,15 @@
+# Clean chapter URLs
+/chapters/foundations  /chapters/00-foundations.html  200
+/chapters/transports-lifecycle  /chapters/01-transports-lifecycle.html  200
+/chapters/protocol  /chapters/02-protocol.html  200
+/chapters/tools  /chapters/03-tools.html  200
+/chapters/resources  /chapters/04-resources.html  200
+/chapters/prompts  /chapters/05-prompts.html  200
+/chapters/long-running-work  /chapters/06-long-running-work.html  200
+/chapters/client  /chapters/07-client.html  200
+/chapters/agent-loop  /chapters/08-agent-loop.html  200
+/chapters/human-approval  /chapters/09-human-approval.html  200
+/chapters/auth-scopes  /chapters/10-auth-scopes.html  200
+/chapters/security-privacy  /chapters/11-security-privacy.html  200
+/chapters/testing-shipping  /chapters/12-testing-shipping.html  200
+/chapters/capstone  /chapters/13-capstone.html  200

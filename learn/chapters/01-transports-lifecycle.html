@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Transports & Lifecycle · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .note { font-size: 13px; color: var(--muted); }
+    .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+    .tag.good { background: var(--good-soft); color: var(--good); }
+    .tag.bad { background: var(--bad-soft); color: var(--bad); }
+    pre.code { margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font: 12.5px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+    h4.cap { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+
+    /* ---------- Explore: connection walkthrough ---------- */
+    .era-bar { margin-bottom: 16px; }
+    .steps { display: flex; flex-direction: column; gap: 8px; }
+    .steps .step { flex: 1 1 0; }
+    .step { font: inherit; text-align: left; cursor: pointer; display: flex; gap: 12px; align-items: center; min-height: 56px; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); transition: border-color .2s, background .2s; }
+    .step:hover { border-color: var(--accent); }
+    .step.active { border-color: var(--accent); background: var(--accent-soft); }
+    .step .n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; background: var(--surface-2); }
+    .step.active .n { background: var(--accent); color: #fff; }
+    .step .t { font-weight: 700; font-size: 15px; line-height: 1.25; }
+    .step .d { font-size: 12px; color: var(--muted); }
+    .msg-card { display: flex; flex-direction: column; gap: 12px; }
+    .msg-card h3 { margin: 0; font-size: 20px; }
+    .dir { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .step-nav { display: flex; gap: 8px; justify-content: center; margin-top: auto; }
+    .step-nav .btn { min-height: 44px; min-width: 120px; }
+
+    /* ---------- Learn: transports ---------- */
+    .tp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .tp-grid { grid-template-columns: 1fr; } }
+    .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .tp-head h3 { margin: 0; font-size: 19px; }
+    .tp dl { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; margin: 0; font-size: 14px; }
+    .tp dt { font-weight: 800; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+    .tp dd { margin: 0; }
+    .tp.repo { border-color: var(--accent); }
+
+    .anat { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: stretch; margin-top: 16px; }
+    @media (max-width: 760px) { .anat { grid-template-columns: 1fr; } }
+    .lines { display: flex; flex-direction: column; gap: 4px; font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .line { font: inherit; text-align: left; cursor: pointer; min-height: 40px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid transparent; background: var(--surface-2); color: var(--text); word-break: break-word; }
+    .line:hover { border-color: var(--accent); }
+    .line.active { border-color: var(--accent); background: var(--accent-soft); }
+    .line .k { color: var(--accent); font-weight: 700; }
+    .line.body { margin-left: 16px; }
+    .line-sep { font-size: 12px; color: var(--muted); padding: 6px 4px 2px; font-family: var(--font); font-weight: 700; }
+    .anat-panel { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+    .anat-panel h3 { margin: 0; font-size: 18px; word-break: break-word; }
+
+    /* ---------- Learn: eras ---------- */
+    .eras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .eras { grid-template-columns: 1fr; } }
+    .eras .card h3 { margin: 6px 0 8px; font-size: 18px; }
+    .matrix { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .matrix { grid-template-columns: 1fr; } }
+    .pick label { display: block; font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
+    .pick .seg { justify-content: flex-start; margin-bottom: 16px; }
+    .pick .seg .btn { flex: 1 1 0; }
+    .outcome { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .outcome .big { font-size: 22px; font-weight: 800; }
+    .caps { margin-top: 16px; }
+
+    /* ---------- Learn: lifecycle sim ---------- */
+    .sim { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .sim { grid-template-columns: 1fr; } }
+    .states { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 12px; margin-bottom: 16px; }
+    .st { flex: 1 1 120px; max-width: 180px; text-align: center; padding: 10px 8px; border-radius: 12px; background: var(--surface-2); font-size: 13px; font-weight: 800; color: var(--muted); border: 1.5px solid transparent; }
+    .st.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .acts .btn { min-height: 48px; font-size: 14px; }
+    .log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+    .log li { padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+    .log li.ok { border-left: 3px solid var(--good); }
+    .log li.bad { border-left: 3px solid var(--bad); }
+    .log li.info { border-left: 3px solid var(--accent); }
+    .log-empty { color: var(--muted); font-size: 13px; }
+    .stateless { margin-top: 16px; }
+
+    /* ---------- Try ---------- */
+    .quiz { max-width: 760px; margin: 0 auto; }
+    .q-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .dots { display: flex; gap: 6px; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-text { font-size: 19px; font-weight: 700; margin: 6px 0 14px; }
+    .opts { display: flex; flex-direction: column; gap: 8px; }
+    .opt { font: inherit; text-align: left; cursor: pointer; min-height: 48px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    .opt:hover:not([disabled]) { border-color: var(--accent); }
+    .opt.right { border-color: var(--good); background: var(--good-soft); }
+    .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .opt[disabled] { cursor: default; }
+    .fb { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-size: 14px; min-height: 48px; display: flex; align-items: center; }
+    .q-nav { display: flex; justify-content: center; margin-top: 14px; }
+    .q-nav .btn { min-height: 44px; min-width: 160px; }
+    .q-nav .btn[disabled], .step-nav .btn[disabled] { opacity: .45; cursor: default; }
+    .run { margin-top: 24px; }
+    .run h3 { margin: 0 0 4px; }
+    .run ol { margin: 12px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .run li { font-size: 14px; }
+    .run li pre.code { margin-top: 6px; }
+
+    /* ---------- Builder's Lens ---------- */
+    .flip, .flip-inner { min-height: 300px; }
+    #lens .flip-back { justify-content: flex-start; overflow-y: auto; }
+    .say { font-size: 19px; font-weight: 700; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13.5px; word-break: break-word; }
+    .flip-back code { font-size: 11.5px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 01 Transports & Lifecycle</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 01 · Transports & Lifecycle</div>
+      <h1>No handshake.<br>Every request stands alone.</h1>
+      <p>How messages travel, how versions are agreed, and how a client survives a bad connection.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#learn">💡 Learn</a>
+        <a href="#eras">🔁 Versions</a>
+        <a href="#heal">🩹 Reconnects</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Connect to a server, two ways</h2>
+      <p class="sub">The Lumen &amp; Leaf store server speaks the modern revision (2026-07-28). Older servers use a handshake. Tap each step to see the real message shape.</p>
+      <div class="seg era-bar" id="era-seg"></div>
+      <div class="split">
+        <div class="steps" id="steps"></div>
+        <div class="card msg-card" id="msg"></div>
+      </div>
+    </section>
+
+    <!-- ================= LEARN: TRANSPORTS ================= -->
+    <section class="section" id="learn">
+      <span class="step-label">💡 Learn</span>
+      <h2>Two transports, same messages</h2>
+      <p class="sub">The JSON-RPC messages are identical. Only how they travel changes.</p>
+      <div class="tp-grid" id="tp-grid"></div>
+      <p class="note" style="text-align:center;margin-top:12px">The older HTTP+SSE transport (2024-11-05) is deprecated. New servers and clients use Streamable HTTP.</p>
+
+      <h2 style="margin-top:40px">Anatomy of one request</h2>
+      <p class="sub">A real-shaped tools/call to the store server. Tap any line.</p>
+      <div class="anat">
+        <div class="card"><div class="lines" id="lines"></div></div>
+        <div class="card anat-panel" id="anat-panel"></div>
+      </div>
+    </section>
+
+    <!-- ================= LEARN: ERAS ================= -->
+    <section class="section" id="eras">
+      <span class="step-label">🔁 Versions</span>
+      <h2>Modern, legacy and dual-era</h2>
+      <p class="sub">The spec's own terms for who speaks which revision.</p>
+      <div class="eras" id="era-cards"></div>
+
+      <h2 style="margin-top:40px">Will they talk?</h2>
+      <p class="sub">Pick a client and a server. Based on the spec's compatibility matrix.</p>
+      <div class="matrix">
+        <div class="card pick">
+          <label>Client</label><div class="seg" id="pick-client"></div>
+          <label>Server</label><div class="seg" id="pick-server" style="margin-bottom:0"></div>
+        </div>
+        <div class="card outcome" id="outcome"></div>
+      </div>
+
+      <div class="card caps">
+        <h4 class="cap">Capabilities: use only what was declared</h4>
+        <ul class="bullets">
+          <li>The server lists its capabilities in <code>server/discover</code> (or the legacy initialize result).</li>
+          <li>A modern client sends its own capabilities with every request, in <code>_meta</code>.</li>
+          <li>Never call a feature the other side didn't declare. A well-built client only lists tools, resources and prompts the server advertised.</li>
+          <li>Optional extensions are negotiated under <code>capabilities.extensions</code>. If only one side supports one, it falls back to core behavior or rejects the request.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= LEARN: RECONNECTS ================= -->
+    <section class="section" id="heal">
+      <span class="step-label">🩹 Reconnects</span>
+      <h2>A client that heals itself</h2>
+      <p class="sub">A sensible example policy for a robust client, as a simulator. Tap an event.</p>
+      <div class="card states" id="states"></div>
+      <div class="sim">
+        <div class="card">
+          <h4 class="cap">Events</h4>
+          <div class="acts" id="acts"></div>
+        </div>
+        <div class="card">
+          <h4 class="cap">Event log</h4>
+          <ul class="log" id="log"></ul>
+        </div>
+      </div>
+      <div class="card stateless">
+        <h4 class="cap">Why the server can stay simple</h4>
+        <ul class="bullets">
+          <li>A stateless server can build a fresh MCP server object for each HTTP request. Nothing protocol-related is kept between requests.</li>
+          <li>So you can run several instances behind a load balancer, with no session affinity.</li>
+          <li>Long-lived state (the store's API client, an idempotency store) is created once at start-up, outside the protocol.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>What happens next?</h2>
+      <p class="sub">Six real situations. Predict the outcome.</p>
+      <div class="card quiz" id="quiz"></div>
+
+      <div class="card run quiz">
+        <h3>▶ Try it for real</h3>
+        <p class="note">Use the official MCP Inspector. Needs Node 22.19+.</p>
+        <ol>
+          <li>Connect to the public example server over Streamable HTTP. It is protected with OAuth, so expect a 401 challenge first; follow the Inspector's auth flow to sign in (Chapter 10 explains every step).<pre class="code">npx @modelcontextprotocol/inspector --server-url https://example-server.modelcontextprotocol.io/mcp --transport http --protocol-era auto</pre></li>
+          <li>Watch the era change. The Inspector defaults to legacy (plain <code>initialize</code>); <code>auto</code> probes <code>server/discover</code> first and falls back. Connect once as modern, once as legacy, and compare the messages.<pre class="code">... --protocol-era modern
+... --protocol-era legacy</pre></li>
+          <li>Run a local server over stdio instead. Same messages, different transport.<pre class="code">npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-everything</pre></li>
+          <li>Point it at a server you built, with its token.<pre class="code">npx @modelcontextprotocol/inspector --server-url http://localhost:3000/mcp --transport http --protocol-era auto --header "Authorization: Bearer &lt;token&gt;"</pre></li>
+          <li>Break it on purpose: send a wrong token. A good client reports the auth failure at once, with no retries.</li>
+        </ol>
+        <p class="note">Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a> · <a href="https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server" target="_blank" rel="noopener">Build a server</a></p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>Revision <b>2026-07-28</b> is stateless: every request carries its <b>version, identity and capabilities</b>.</li>
+          <li><b>stdio</b> for a local subprocess, <b>Streamable HTTP</b> for a remote server. Same JSON-RPC messages.</li>
+          <li>Retry only what's safe: <b>transient</b> failures yes, <b>auth</b> never, <b>writes</b> reported instead of repeated.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const list = (a) => `<ul class="bullets">${a.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+
+    /* ---------- Explore: two eras ---------- */
+    const META = `"_meta": {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientInfo": { "name": "shop-assistant", "version": "1.0.0" },
+    "io.modelcontextprotocol/clientCapabilities": {}
+  }`;
+    const ERAS = {
+      modern: {
+        label: "Modern · 2026-07-28",
+        steps: [
+          { t: "Discover (optional)", d: "Client → Server", dir: "Client → Server · POST /mcp",
+            pts: ["Learn the server's versions, capabilities and identity in one call.", "Optional over HTTP. Any request can go first."],
+            code: `MCP-Protocol-Version: 2026-07-28
+Mcp-Method: server/discover
+
+{ "jsonrpc": "2.0", "id": 1, "method": "server/discover",
+  "params": { ${META} } }` },
+          { t: "DiscoverResult", d: "Server → Client", dir: "Server → Client · 200 OK",
+            pts: ["supportedVersions: pick one for later requests.", "capabilities: only use what's listed.", "serverInfo is self-reported. Display it, don't trust it for security."],
+            code: `{ "jsonrpc": "2.0", "id": 1, "result": {
+  "supportedVersions": ["2026-07-28", ...],
+  "capabilities": { "tools": {}, "resources": {}, "prompts": {} },
+  "_meta": { "io.modelcontextprotocol/serverInfo":
+             { "name": "lumen-leaf-store", "version": "1.0.0" } },
+  "instructions": "..." } }` },
+          { t: "Call a tool", d: "Client → Server", dir: "Client → Server · POST /mcp",
+            pts: ["Every request carries its version, identity and capabilities.", "Key fields are mirrored into headers so gateways can route without reading the body."],
+            code: `Authorization: Bearer <token>
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: search_products
+
+{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+  "params": { "name": "search_products", "arguments": { "query": "mug" },
+  ${META} } }` },
+          { t: "JSON or a stream", d: "Server → Client", dir: "Server → Client",
+            pts: ["Quick answer: one JSON object.", "Long work: an SSE stream for this request only. Progress notifications, then the result.", "Need input from the client? The server returns an InputRequiredResult and the client retries with the answers. It never sends its own requests."],
+            code: `Content-Type: text/event-stream
+
+data: {"method":"notifications/progress", ...}
+data: {"method":"notifications/progress", ...}
+data: {"jsonrpc":"2.0","id":2,"result":{ ... }}` },
+          { t: "Nothing to tear down", d: "No session", dir: "Either side",
+            pts: ["There is no session to end and no shutdown message on HTTP.", "To cancel a request, close its response stream.", "Any instance can serve the next request."],
+            code: `# no Mcp-Session-Id
+# no initialize / initialized
+# no DELETE to end a session` },
+        ],
+      },
+      legacy: {
+        label: "Legacy · 2025 handshake",
+        steps: [
+          { t: "initialize", d: "Client → Server", dir: "Client → Server",
+            pts: ["Opens a session. Nothing else may come first.", "Client proposes a version and declares its capabilities once."],
+            code: `{ "jsonrpc": "2.0", "id": 1, "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {},
+    "clientInfo": { "name": "shop-assistant", "version": "1.0.0" } } }` },
+          { t: "InitializeResult", d: "Server → Client", dir: "Server → Client",
+            pts: ["Server answers with the version it will use and its capabilities.", "On HTTP it may assign a session in the Mcp-Session-Id header."],
+            code: `Mcp-Session-Id: 1868a90c-...
+
+{ "jsonrpc": "2.0", "id": 1, "result": {
+  "protocolVersion": "2025-11-25",
+  "capabilities": { "tools": {}, "resources": {} },
+  "serverInfo": { "name": "lumen-leaf-store", "version": "1.0.0" } } }` },
+          { t: "initialized", d: "Client → Server", dir: "Client → Server",
+            pts: ["A notification: the client is ready.", "Only now may normal requests start."],
+            code: `{ "jsonrpc": "2.0", "method": "notifications/initialized" }` },
+          { t: "Requests in a session", d: "Client ⇄ Server", dir: "Client ⇄ Server",
+            pts: ["Every request repeats the session id.", "Servers could push requests on SSE streams, including a standalone GET stream.", "The session ties the client to one server instance."],
+            code: `Mcp-Session-Id: 1868a90c-...
+
+{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+  "params": { "name": "search_products", "arguments": { "query": "mug" } } }` },
+          { t: "End the session", d: "Client → Server", dir: "Client → Server · HTTP DELETE",
+            pts: ["The client ends the session explicitly.", "On stdio: close the server's input stream instead."],
+            code: `DELETE /mcp
+Mcp-Session-Id: 1868a90c-...` },
+        ],
+      },
+    };
+    let era = "modern", stepIdx = 0;
+    function renderExplore() {
+      $("era-seg").innerHTML = Object.entries(ERAS).map(([k, v]) =>
+        `<button class="btn ${k === era ? "active" : ""}" data-era="${k}">${v.label}</button>`).join("");
+      const steps = ERAS[era].steps;
+      $("steps").innerHTML = steps.map((s, i) => `
+        <button class="step ${i === stepIdx ? "active" : ""}" data-step="${i}">
+          <span class="n">${i + 1}</span><span><span class="t">${s.t}</span><br><span class="d">${s.d}</span></span>
+        </button>`).join("");
+      const s = steps[stepIdx];
+      $("msg").innerHTML = `
+        <div class="dir">${s.dir}</div>
+        <h3>${stepIdx + 1}. ${s.t}</h3>
+        ${list(s.pts)}
+        <pre class="code">${esc(s.code)}</pre>
+        <div class="step-nav">
+          <button class="btn" data-move="-1" ${stepIdx === 0 ? "disabled" : ""}>← Back</button>
+          <button class="btn primary" data-move="1" ${stepIdx === steps.length - 1 ? "disabled" : ""}>Next →</button>
+        </div>`;
+    }
+    $("explore").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-era],[data-step],[data-move]");
+      if (!b || b.disabled) return;
+      if (b.dataset.era) { era = b.dataset.era; stepIdx = 0; }
+      if (b.dataset.step) stepIdx = +b.dataset.step;
+      if (b.dataset.move) stepIdx = Math.max(0, Math.min(ERAS[era].steps.length - 1, stepIdx + +b.dataset.move));
+      renderExplore();
+    });
+    renderExplore();
+
+    /* ---------- Learn: transports ---------- */
+    const TRANSPORTS = [
+      { name: "🖥️ stdio", tag: "", rows: [
+        ["Setup", "The client launches the server as a subprocess."],
+        ["Framing", "One JSON-RPC message per line on stdin and stdout. Logs go to stderr."],
+        ["Metadata", "All inline in <code>_meta</code>. No header layer."],
+        ["Server → client", "One shared stdout channel, correlated by request id."],
+        ["Cancel", "Send <code>notifications/cancelled</code> with the request id."],
+        ["Best for", "Local tools and desktop apps."],
+        ["Watch", "Never print anything but MCP messages to stdout."]] },
+      { name: "🌐 Streamable HTTP", tag: "The store server", rows: [
+        ["Setup", "The server runs on its own and serves many clients."],
+        ["Framing", "Each message is its own POST to one endpoint, e.g. <code>/mcp</code>."],
+        ["Metadata", "<code>_meta</code> plus mirrored headers: protocol version, method, name."],
+        ["Server → client", "A JSON reply or an SSE stream per request. Long-lived changes via <code>subscriptions/listen</code>. Input requests come back as <code>InputRequiredResult</code>."],
+        ["Cancel", "Close the request's response stream."],
+        ["Best for", "Remote servers, many users, horizontal scaling."],
+        ["Watch", "Validate <code>Origin</code>, bind to localhost when local, require auth."]] },
+    ];
+    $("tp-grid").innerHTML = TRANSPORTS.map((t) => `
+      <div class="card tp ${t.tag ? "repo" : ""}">
+        <div class="tp-head"><h3>${t.name}</h3>${t.tag ? `<span class="tag">${t.tag}</span>` : `<span class="tag">Local</span>`}</div>
+        <dl>${t.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+      </div>`).join("");
+
+    const LINES = [
+      { sep: "HTTP request" },
+      { k: "POST", v: " /mcp", h: "POST /mcp", why: ["One endpoint for everything. The store server's is <code>https://store.example.com/mcp</code>.", "GET and DELETE on this endpoint belonged to the legacy transport."] },
+      { k: "Authorization:", v: " Bearer &lt;token&gt;", h: "Authorization", why: ["Checked on every request before any MCP handling.", "The server maps the token to a known client and its scopes."] },
+      { k: "Accept:", v: " application/json, text/event-stream", h: "Accept", why: ["The client must accept both.", "The server picks per request: one JSON object or an SSE stream."] },
+      { k: "MCP-Protocol-Version:", v: " 2026-07-28", h: "MCP-Protocol-Version", why: ["Required on every POST.", "Must match the version in <code>_meta</code>, or the server returns 400 with a <code>HeaderMismatch</code> error."] },
+      { k: "Mcp-Method:", v: " tools/call", h: "Mcp-Method", why: ["Mirrors the JSON-RPC method.", "Lets gateways and load balancers route without parsing the body."] },
+      { k: "Mcp-Name:", v: " search_products", h: "Mcp-Name", why: ["Mirrors the tool, prompt or resource being used.", "Required for tools/call, resources/read and prompts/get."] },
+      { sep: "JSON body: params._meta" },
+      { k: "protocolVersion:", v: " \"2026-07-28\"", h: "io.modelcontextprotocol/protocolVersion", body: 1, why: ["The version this request speaks.", "Unsupported? The server replies 400 with <code>UnsupportedProtocolVersionError</code> and its supported list."] },
+      { k: "clientInfo:", v: " { name, version }", h: "io.modelcontextprotocol/clientInfo", body: 1, why: ["Who is calling. The shop assistant sends <code>shop-assistant 1.0.0</code>.", "Self-reported: good for logs, not for security."] },
+      { k: "clientCapabilities:", v: " {}", h: "io.modelcontextprotocol/clientCapabilities", body: 1, why: ["What this client supports, sent with each request.", "Replaces the capabilities a legacy client sent once in initialize."] },
+    ];
+    let lineIdx = 4;
+    function renderLines() {
+      $("lines").innerHTML = LINES.map((l, i) => l.sep
+        ? `<div class="line-sep">${l.sep}</div>`
+        : `<button class="line ${l.body ? "body" : ""} ${i === lineIdx ? "active" : ""}" data-line="${i}"><span class="k">${l.k}</span>${l.v}</button>`).join("");
+      const l = LINES[lineIdx];
+      $("anat-panel").innerHTML = `<div class="dir">${l.body ? "Body" : "Header"}</div><h3><code>${l.h}</code></h3>${list(l.why)}`;
+    }
+    $("lines").addEventListener("click", (e) => { const b = e.target.closest("[data-line]"); if (b) { lineIdx = +b.dataset.line; renderLines(); } });
+    renderLines();
+
+    /* ---------- Learn: eras ---------- */
+    const ERA_CARDS = [
+      ["Modern", "2026-07-28 and later", ["Version, identity and capabilities ride on every request.", "No session. Any instance can answer."]],
+      ["Legacy", "2025-11-25 and earlier", ["An <code>initialize</code> handshake opens a session.", "Capabilities are agreed once, up front."]],
+      ["Dual-era", "Speaks both", ["Modern request in, modern behavior out. <code>initialize</code> in, legacy semantics.", "<b>The store server and shop assistant are both dual-era.</b>"]],
+    ];
+    $("era-cards").innerHTML = ERA_CARDS.map(([t, s, pts]) => `
+      <div class="card"><span class="tag">${s}</span><h3>${t}</h3>${list(pts)}</div>`).join("");
+
+    const KINDS = ["Modern", "Dual-era", "Legacy"];
+    const MATRIX = {
+      "Modern|Modern": [1, "Works", ["<code>server/discover</code> is optional.", "A version mismatch returns <code>UnsupportedProtocolVersionError</code>; the client retries with a shared version."]],
+      "Modern|Dual-era": [1, "Works", ["The server sees modern <code>_meta</code> and serves the request statelessly."]],
+      "Modern|Legacy": [0, "Fails", ["The legacy server may error, stay silent, or even run the call under old rules.", "On stdio, probing with <code>server/discover</code> first makes the failure clear."]],
+      "Dual-era|Modern": [1, "Works", ["The first modern request succeeds, or returns a modern error. The client stays modern."]],
+      "Dual-era|Dual-era": [1, "Works, modern", ["Both prefer the modern revision.", "<b>Our example:</b> the shop assistant probes once and stays on 2026-07-28."]],
+      "Dual-era|Legacy": [1, "Works, legacy", ["HTTP: a 4xx without a modern error body tells the client to fall back to <code>initialize</code>.", "stdio: a non-modern error or a timeout on the probe means the same."]],
+      "Legacy|Modern": [0, "Fails", ["HTTP: the request lacks the required headers, so it gets 400.", "Legacy clients have no way to move forward."]],
+      "Legacy|Dual-era": [1, "Works, legacy", ["The server answers <code>initialize</code> and serves the old revision.", "A dual-era server does this through its SDK's legacy fallback."]],
+      "Legacy|Legacy": [1, "Works, legacy", ["Both follow the old revision. Nothing new applies."]],
+    };
+    let cEra = "Dual-era", sEra = "Dual-era";
+    function renderMatrix() {
+      $("pick-client").innerHTML = KINDS.map((k) => `<button class="btn ${k === cEra ? "active" : ""}" data-c="${k}">${k}</button>`).join("");
+      $("pick-server").innerHTML = KINDS.map((k) => `<button class="btn ${k === sEra ? "active" : ""}" data-s="${k}">${k}</button>`).join("");
+      const [ok, title, pts] = MATRIX[`${cEra}|${sEra}`];
+      $("outcome").innerHTML = `<span class="tag ${ok ? "good" : "bad"}" style="align-self:flex-start">${cEra} client · ${sEra} server</span>
+        <div class="big">${ok ? "✅" : "❌"} ${title}</div>${list(pts)}`;
+    }
+    $("eras").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-c],[data-s]");
+      if (!b) return;
+      if (b.dataset.c) cEra = b.dataset.c;
+      if (b.dataset.s) sEra = b.dataset.s;
+      renderMatrix();
+    });
+    renderMatrix();
+
+    /* ---------- Learn: reconnect simulator ---------- */
+    const STATES = ["idle", "connecting", "connected", "reconnecting", "closed"];
+    let simState = "idle", log = [];
+    const ACTIONS = [
+      ["connect", "🔌 Connect"],
+      ["blip", "📶 Connect, network blip"],
+      ["token", "🔑 Connect, bad token"],
+      ["read", "📖 Server restarts mid-read"],
+      ["write", "✏️ Server restarts mid-write"],
+      ["close", "⏹️ Close"],
+    ];
+    const push = (cls, text) => { log.unshift({ cls, text }); log = log.slice(0, 7); };
+    function act(a) {
+      if (simState === "closed" && a !== "close") { push("bad", "Connection is closed. Close is final; create a new connection."); return; }
+      const connectOk = () => { simState = "connected"; push("ok", "Probe with server/discover → modern era, protocol 2026-07-28. Connected."); };
+      if (a === "connect") {
+        if (simState === "connected") push("info", "Already connected. The same client is reused.");
+        else { simState = "connecting"; connectOk(); }
+      } else if (a === "blip") {
+        if (simState === "connected") { push("info", "Already connected. Nothing to retry."); return; }
+        simState = "connecting";
+        push("bad", "Attempt 1 failed (network). Transient, so retry in 300 ms.");
+        push("bad", "Attempt 2 failed (network). Retry in 600 ms.");
+        connectOk();
+        push("info", "Up to 3 attempts, doubling the delay each time.");
+      } else if (a === "token") {
+        if (simState === "connected") { push("info", "Already connected with a valid token."); return; }
+        simState = "connecting";
+        push("bad", "Attempt 1 failed: 401 auth challenge.");
+        simState = "idle";
+        push("bad", "Auth errors are never retried. Retrying can't fix a wrong token. Back to idle.");
+      } else if (a === "read") {
+        if (simState !== "connected") { push("info", "Connect first."); return; }
+        push("bad", "search_products failed in transit (transient).");
+        simState = "reconnecting";
+        push("info", "Reads are safe to repeat, so: reconnecting.");
+        connectOk();
+        push("ok", "search_products ran again and returned. Handlers re-attached to the new client.");
+      } else if (a === "write") {
+        if (simState !== "connected") { push("info", "Connect first."); return; }
+        push("bad", "update_stock failed in transit.");
+        simState = "idle";
+        push("bad", "Not repeated: the write may already have been applied. The error is reported instead. Transport closed, so idle.");
+      } else if (a === "close") {
+        simState = "closed";
+        push("info", "close() called. The state is final.");
+      }
+    }
+    function renderSim() {
+      $("states").innerHTML = STATES.map((s) => `<div class="st ${s === simState ? "on" : ""}">${s}</div>`).join("");
+      $("acts").innerHTML = ACTIONS.map(([k, l]) => `<button class="btn" data-act="${k}">${l}</button>`).join("");
+      $("log").innerHTML = log.length ? log.map((l) => `<li class="${l.cls}">${l.text}</li>`).join("")
+        : ["Tap an event to start. Newest entries appear on top.", "Transient failures: up to 3 attempts, 300 ms delay doubling.", "Auth failures: never retried.", "After a reconnect: only reads are repeated."].map((t) => `<li class="info log-empty">${t}</li>`).join("");
+    }
+    $("acts").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) { act(b.dataset.act); renderSim(); } });
+    renderSim();
+
+    /* ---------- Try ---------- */
+    const QUIZ = [
+      { q: "A request's MCP-Protocol-Version header says 2026-07-28, but its _meta says 2025-11-25.",
+        o: ["The server uses the header and ignores the body", "400 Bad Request with a HeaderMismatch error", "The server picks the newer version"], a: 1,
+        why: "Headers and body must agree. A mismatch is rejected so a gateway routing on the header can't be tricked by a different body." },
+      { q: "A modern client asks for a protocol version the server doesn't support.",
+        o: ["The server silently uses its own version", "The connection is closed with no reason", "400 with UnsupportedProtocolVersionError listing supported versions; the client retries with one"], a: 2,
+        why: "The error tells the client exactly which versions the server speaks, so it can retry with a shared one." },
+      { q: "An old 2025-era client sends initialize to the store server.",
+        o: ["It works: the store server is dual-era and serves it under the legacy revision", "It fails: modern servers reject initialize", "It works, but only on stdio"], a: 0,
+        why: "The store server serves 2026-07-28 statelessly and also handles 2025-era clients through a legacy fallback. Test both eras before you ship." },
+      { q: "The shop assistant connects with a wrong bearer token.",
+        o: ["It retries 3 times with backoff", "It fails fast: auth errors are never retried", "It falls back to the legacy handshake"], a: 1,
+        why: "Retrying can't fix a wrong token, so a good client stops at once and reports it. Only transient errors get backoff." },
+      { q: "The server restarts while update_stock is in flight.",
+        o: ["The client reconnects and sends the write again", "The client waits and resumes the stream", "The error is reported; the write is not repeated"], a: 2,
+        why: "The write may already have been applied. Repeating it could double the change, so only reads are retried after a reconnect." },
+      { q: "A long catalog scan is streaming progress over HTTP and the user cancels.",
+        o: ["The client closes that request's response stream", "The client sends DELETE /mcp", "The client sends notifications/cancelled on a new POST"], a: 0,
+        why: "On Streamable HTTP, closing the request's own stream is the cancellation signal. notifications/cancelled is for stdio." },
+    ];
+    let qi = 0, res = [], picked = null;
+    function renderQuiz() {
+      const dots = QUIZ.map((_, i) => `<i class="${res[i] === true ? "good" : res[i] === false ? "bad" : ""}"></i>`).join("");
+      if (qi >= QUIZ.length) {
+        const score = res.filter(Boolean).length;
+        $("quiz").innerHTML = `<div class="q-top"><span class="tag">Result</span><div class="dots">${dots}</div></div>
+          <div class="q-text">${score >= 5 ? "🏆" : score >= 3 ? "👍" : "🌱"} ${score} / ${QUIZ.length} correct</div>
+          <p class="note">Each one maps to a habit in the Builder's Lens cards below.</p>
+          <div class="q-nav"><button class="btn primary" data-q="restart">Try again</button></div>`;
+        return;
+      }
+      const q = QUIZ[qi];
+      $("quiz").innerHTML = `<div class="q-top"><span class="tag">Situation ${qi + 1} of ${QUIZ.length}</span><div class="dots">${dots}</div></div>
+        <div class="q-text">${q.q}</div>
+        <div class="opts">${q.o.map((o, i) => `<button class="opt ${picked === null ? "" : i === q.a ? "right" : i === picked ? "wrong" : ""}" data-o="${i}" ${picked === null ? "" : "disabled"}>${o}</button>`).join("")}</div>
+        <div class="fb">${picked === null ? "Pick the outcome you expect." : `${picked === q.a ? "✅ Right." : "❌ Not quite."} ${q.why}`}</div>
+        <div class="q-nav"><button class="btn primary" data-q="next" ${picked === null ? "disabled" : ""}>${qi === QUIZ.length - 1 ? "See result" : "Next situation →"}</button></div>`;
+    }
+    $("quiz").addEventListener("click", (e) => {
+      const o = e.target.closest("[data-o]"), n = e.target.closest("[data-q]");
+      if (o && picked === null) { picked = +o.dataset.o; res[qi] = picked === QUIZ[qi].a; renderQuiz(); }
+      if (n && !n.disabled) {
+        if (n.dataset.q === "restart") { qi = 0; res = []; }
+        else qi++;
+        picked = null; renderQuiz();
+      }
+    });
+    renderQuiz();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["Pick a transport", "Local, TypeScript SDK: <code>serveStdio(createServer)</code> from <code>@modelcontextprotocol/server/stdio</code>. Remote: one Streamable HTTP endpoint such as <code>POST /mcp</code>.", "On stdio, a stray <code>console.log</code> to stdout corrupts the message stream. Log to stderr.", "Inspector over stdio, then over <code style=\"white-space:nowrap\">--transport http --protocol-era auto</code>. Same tools, same results."],
+      ["Stay stateless", "Pseudocode: <code>app.post(\"/mcp\", (req, res) =&gt; handle(createServer(), req, res))</code>, a fresh server object per request.", "Keeping per-user protocol state in memory. It breaks the moment a load balancer sends the next request elsewhere.", "Run two instances behind a balancer. Every call works no matter which one answers."],
+      ["Check headers against the body", "Pseudocode: <code>if (header(\"MCP-Protocol-Version\") !== meta.protocolVersion) return http400(\"HeaderMismatch\")</code>", "Trusting only the header. A gateway routes on it, so the body must agree.", "Send a request whose header and <code>_meta</code> disagree. Expect a 400."],
+      ["Negotiate the version", "Pseudocode: send <code>2026-07-28</code>; on <code>UnsupportedProtocolVersionError</code>, retry with a version from its supported list.", "Hard-coding one version forever. Servers move on; read the list they send back.", "Inspector with <code>--protocol-era modern</code>, then <code>legacy</code>, then <code>auto</code>."],
+      ["Retry with backoff", "Pseudocode: <code>for 3 attempts: try connect(); catch e: if isAuth(e) throw e; sleep(300ms × 2^n)</code>", "Retrying auth errors, or retrying forever. Both hide the real problem.", "Stop the server, start the client, then restart the server inside the retry window."],
+      ["Never replay writes", "Pseudocode: <code>retryOnDisconnect = tool.annotations?.readOnlyHint === true</code>", "Replaying <code>update_stock</code> after a dropped connection can apply the change twice.", "Kill the server mid-write. The client reports the error, and the stock changed at most once."],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, code, trap, check]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${trap}</p>
+          <div class="lbl">Verify</div><p>${check}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(1);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

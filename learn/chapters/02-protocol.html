@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>The Protocol · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json {
+      margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2);
+      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text);
+    }
+    pre.json .hl { background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 0 3px; font-weight: 700; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
+    .chip.req { background: var(--accent-soft); color: var(--accent); }
+    .chip.res { background: var(--good-soft); color: var(--good); }
+    .chip.err { background: var(--bad-soft); color: var(--bad); }
+    .chip.note-c { background: var(--surface-2); color: var(--muted); }
+
+    /* ---------- Explore: wire inspector ---------- */
+    .actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    @media (max-width: 700px) { .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .actions .btn { min-height: 52px; padding: 8px 6px; font-size: 14px; }
+    .wire { padding: 0; overflow: hidden; }
+    .wire-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); font-weight: 800; font-size: 14px; }
+    .wire-head .r { text-align: right; }
+    .wire-head .mid { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .wire-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 360px; }
+    .msg { width: 84%; border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line)); border-radius: 12px; background: var(--surface); animation: pop .3s ease; }
+    .msg.server { margin-left: auto; border-left-width: 1px; border-right: 4px solid var(--c, var(--line)); }
+    .msg summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; min-height: 44px; }
+    .msg summary::-webkit-details-marker { display: none; }
+    .msg .dir { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .msg .meth { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .msg .idc { margin-left: auto; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; color: #fff; background: var(--c, var(--muted)); }
+    .msg .idc.none { background: var(--surface-2); color: var(--muted); }
+    .msg pre.json { margin: 0 12px 12px; }
+    .ghost { flex: 1; display: grid; place-content: center; text-align: center; color: var(--muted); border: 1.5px dashed var(--line); border-radius: 12px; padding: 24px; }
+    .wire-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); }
+    .counts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .wire-tip { margin: 0 16px 14px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; }
+    @keyframes pop { from { opacity: 0; transform: translateY(6px); } }
+
+    /* ---------- Learn: three shapes ---------- */
+    .shapes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 900px) { .shapes { grid-template-columns: 1fr; } }
+    .shape { display: flex; flex-direction: column; gap: 12px; }
+    .shape h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 18px; }
+    .shape .bullets { font-size: 14px; }
+    .shape pre.json { flex: 1; }
+    @media (min-width: 701px) and (max-width: 900px) {
+      .shape { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+      .shape h3 { grid-column: 1 / -1; }
+    }
+
+    .methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .methods { grid-template-columns: 1fr; } }
+    .mgroup h4 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+    .mlist { display: flex; flex-wrap: wrap; gap: 8px; }
+    .mbtn { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+    .mbtn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .mbtn.legacy { border-style: dashed; color: var(--muted); }
+    .mdesc { margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); min-height: 52px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .mdesc code { font-weight: 800; color: var(--accent); }
+
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+    .two > .card { display: flex; flex-direction: column; gap: 12px; }
+    .two h3 { margin: 0; font-size: 18px; }
+    .page-dots { display: flex; gap: 6px; justify-content: center; }
+    .page-dots i { width: 28px; height: 6px; border-radius: 999px; background: var(--line); }
+    .page-dots i.on { background: var(--accent); }
+    .pager { display: flex; gap: 8px; justify-content: center; }
+    .pager .btn { min-height: 44px; }
+
+    /* ---------- Learn: errors ---------- */
+    .err-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+    @media (max-width: 700px) { .err-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .err-pick .btn { min-height: 52px; font-size: 14px; padding: 8px 10px; }
+    .err-pick .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .verdict { display: flex; flex-direction: column; gap: 10px; }
+    .verdict .big { font-size: 20px; font-weight: 800; }
+    .verdict dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; }
+    .verdict dt { font-weight: 800; color: var(--muted); }
+    .verdict dd { margin: 0; }
+    .codes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 900px) { .codes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .code-tile { padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+    .code-tile b { display: block; font: 800 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--accent); }
+    .code-tile span { font-size: 13px; color: var(--muted); }
+    .code-tile.mcp b { color: var(--good); }
+    .code-tile.old b { color: var(--muted); text-decoration: line-through; }
+
+    /* ---------- Try: spot the bug ---------- */
+    .bug { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .bug { grid-template-columns: 1fr; } }
+    .bug > .card { display: flex; flex-direction: column; gap: 12px; }
+    .ctx { font-size: 14px; color: var(--muted); }
+    .lines { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 12px; background: var(--surface-2); }
+    .line { text-align: left; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; min-height: 40px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid transparent; background: transparent; color: var(--text); cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .line.static { cursor: default; min-height: 0; padding: 2px 10px; color: var(--muted); }
+    .line.pick:not(:disabled):active { border-color: var(--accent); }
+    .line.right { border-color: var(--good); background: var(--good-soft); }
+    .line.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .fb { flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; font-size: 15px; }
+    .fb .hint { color: var(--muted); }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .dots { display: flex; gap: 6px; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .q-foot .btn { min-height: 44px; }
+
+    .run { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: stretch; margin-top: 40px; }
+    @media (max-width: 860px) { .run { grid-template-columns: 1fr; } }
+    .run > .card { display: flex; flex-direction: column; gap: 12px; }
+    .run h3 { margin: 0; font-size: 18px; }
+    .run pre.json { flex: 1; }
+    .run pre .c { color: var(--muted); }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 20px; font-weight: 700; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+    .flip-back code { font-size: 11.5px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 02 The Protocol</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 02 · The Protocol</div>
+      <h1>Three message shapes.<br>Everything else is detail.</h1>
+      <p>MCP speaks JSON-RPC 2.0. Learn to read every message that crosses the wire.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#learn">💡 Learn</a>
+        <a href="#errors">🚨 Errors</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Watch the wire</h2>
+      <p class="sub">The shop assistant talks to the Lumen &amp; Leaf store server. Tap an action and read what really travels. Matching colors mean matching ids.</p>
+
+      <div class="actions" id="actions">
+        <button class="btn" data-act="list">🔎 List tools</button>
+        <button class="btn" data-act="call">🛠️ Call a tool</button>
+        <button class="btn" data-act="read">📄 Read a resource</button>
+        <button class="btn" data-act="listen">📡 Subscribe</button>
+        <button class="btn" data-act="update">✏️ Change stock</button>
+      </div>
+
+      <div class="card wire">
+        <div class="wire-head"><span>💻 Client</span><span class="mid">JSON-RPC over Streamable HTTP</span><span class="r">Server 🗄️</span></div>
+        <div class="wire-tip" id="wire-tip">Start with <b>List tools</b>. Tap any message to open its JSON.</div>
+        <div class="wire-body" id="wire"></div>
+        <div class="wire-foot">
+          <div class="counts" id="counts"></div>
+          <button class="btn" id="wire-clear">↺ Clear</button>
+        </div>
+      </div>
+      <p class="note" style="text-align:center">Messages follow protocol revision 2026-07-28. Payloads are shortened where marked.</p>
+    </section>
+
+    <!-- ================= LEARN ================= -->
+    <section class="section" id="learn">
+      <span class="step-label">💡 Learn</span>
+      <h2>Only three shapes</h2>
+      <p class="sub">Every MCP message is one of these. The highlighted fields decide which.</p>
+
+      <div class="shapes">
+        <div class="card shape">
+          <h3><span class="chip req">Request</span> asks for work</h3>
+          <pre class="json">{
+  <span class="hl">"jsonrpc": "2.0"</span>,
+  <span class="hl">"id": 7</span>,
+  <span class="hl">"method": "tools/call"</span>,
+  "params": {
+    "name": "get_stock_level",
+    "arguments": { "productId": 101 },
+    "_meta": { … }
+  }
+}</pre>
+          <ul class="bullets">
+            <li><b>id</b> is a string or integer, <b>never null</b> (stricter than plain JSON-RPC)</li>
+            <li>An id can't be reused while that request is still waiting</li>
+            <li>Sent by the client to start an operation</li>
+          </ul>
+        </div>
+        <div class="card shape">
+          <h3><span class="chip res">Response</span> answers it</h3>
+          <pre class="json">{
+  <span class="hl">"jsonrpc": "2.0"</span>,
+  <span class="hl">"id": 7</span>,
+  <span class="hl">"result"</span>: {
+    "resultType": "complete",
+    "content": [{ "type": "text",
+      "text": "14 in stock" }]
+  }
+}</pre>
+          <ul class="bullets">
+            <li><b>Same id</b> as the request it answers</li>
+            <li>Either <b>result</b> or <b>error</b>, never both</li>
+            <li>Results carry <b>resultType</b>; a missing one means <code>"complete"</code></li>
+          </ul>
+        </div>
+        <div class="card shape">
+          <h3><span class="chip note-c">Notification</span> just tells</h3>
+          <pre class="json">{
+  <span class="hl">"jsonrpc": "2.0"</span>,
+  <span class="hl">"method": "notifications/
+    resources/updated"</span>,
+  "params": {
+    "uri": "shop://products/101"
+  }
+}</pre>
+          <ul class="bullets">
+            <li><b>No id</b>, and the receiver <b>must not reply</b></li>
+            <li>Can flow either way: progress, updates, cancellation</li>
+            <li>Method names start with <code>notifications/</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">Method names you'll see</h2>
+      <p class="sub">A noun, a slash, a verb. Tap one to see what it does.</p>
+      <div class="card">
+        <div class="methods" id="methods"></div>
+        <div class="mdesc" id="mdesc"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Every request stands alone</h2>
+      <p class="sub">In 2026-07-28 the protocol is stateless. Each request brings its own context in <code>_meta</code>.</p>
+      <div class="two">
+        <div class="card">
+          <h3>🧾 What's inside <code>_meta</code></h3>
+          <pre class="json" style="font-size:11.5px">"_meta": {
+  <span class="hl">"io.modelcontextprotocol/protocolVersion"</span>: "2026-07-28",
+  <span class="hl">"io.modelcontextprotocol/clientCapabilities"</span>: {},
+  "io.modelcontextprotocol/clientInfo": {
+    "name": "shop-assistant",
+    "version": "1.0.0"
+  }
+}</pre>
+          <p class="note" style="margin:0">Highlighted keys are required on every request. clientInfo is optional but recommended.</p>
+        </div>
+        <div class="card">
+          <h3>📏 The rules</h3>
+          <ul class="bullets">
+            <li>The server <b>must not</b> rely on earlier requests for version, capabilities or identity</li>
+            <li>A missing required field → error <b>-32602</b>, and HTTP <b>400</b></li>
+            <li>Long-lived work (like a subscription) is referenced by an explicit id</li>
+            <li><b>clientInfo</b> and <b>serverInfo</b> are self-reported: fine for logs, not for security</li>
+            <li><b>Legacy</b> (2025-era) clients open a session with <code>initialize</code>. A <b>dual-era</b> server serves both (Chapter 01)</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">Long lists come in pages</h2>
+      <p class="sub">List methods return a page plus an opaque <code>nextCursor</code>. Tap through a resource list.</p>
+      <div class="two">
+        <div class="card">
+          <h3 id="pg-title">Request page 1</h3>
+          <pre class="json" id="pg-json"></pre>
+          <div class="page-dots" id="pg-dots"></div>
+          <div class="pager"><button class="btn primary" id="pg-next">Fetch next page →</button><button class="btn" id="pg-reset">↺ Restart</button></div>
+        </div>
+        <div class="card">
+          <h3>🔑 Cursor rules</h3>
+          <ul class="bullets">
+            <li>Supported by <code>tools/list</code>, <code>resources/list</code>, <code>resources/templates/list</code>, <code>prompts/list</code></li>
+            <li>The <b>server</b> picks the page size. Never assume one</li>
+            <li>A cursor is <b>opaque</b>: don't parse, edit or build it</li>
+            <li>No <code>nextCursor</code> means the end. An empty string is still a valid cursor</li>
+            <li>A bad cursor should get error <b>-32602</b></li>
+          </ul>
+          <p class="note" style="margin:0">Cursor values here are made up for the demo.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ERRORS ================= -->
+    <section class="section" id="errors">
+      <span class="step-label">🚨 Learn</span>
+      <h2>Two very different failures</h2>
+      <p class="sub">A broken request gets a JSON-RPC <b>error</b>. A valid call that can't succeed gets a <b>result</b> with <code>isError: true</code>. Pick a situation.</p>
+
+      <div class="err-pick" id="err-pick"></div>
+      <div class="two">
+        <div class="card">
+          <h3 id="err-title">Response</h3>
+          <pre class="json" id="err-json"></pre>
+        </div>
+        <div class="card verdict" id="err-verdict"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Error codes worth knowing</h2>
+      <p class="sub">Standard JSON-RPC codes for protocol failures, plus three codes MCP defines itself.</p>
+      <div class="codes">
+        <div class="code-tile"><b>-32700</b><span>Parse error: not valid JSON</span></div>
+        <div class="code-tile"><b>-32600</b><span>Invalid Request: not a valid request object</span></div>
+        <div class="code-tile"><b>-32601</b><span>Method not found</span></div>
+        <div class="code-tile"><b>-32602</b><span>Invalid params: unknown tool, bad cursor, missing _meta</span></div>
+        <div class="code-tile"><b>-32603</b><span>Internal error on the receiver</span></div>
+        <div class="code-tile mcp"><b>-32020</b><span>HeaderMismatch (MCP)</span></div>
+        <div class="code-tile mcp"><b>-32021</b><span>MissingRequiredClientCapability (MCP)</span></div>
+        <div class="code-tile mcp"><b>-32022</b><span>UnsupportedProtocolVersion (MCP)</span></div>
+      </div>
+      <p class="note" style="text-align:center;margin-top:12px">Error codes must be integers. <b>-32002</b> (old "resource not found") is retired in 2026-07-28 and replaced by -32602; clients should still accept it from older servers.</p>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Spot the bug</h2>
+      <p class="sub">Each message breaks one rule. Tap the line that's wrong.</p>
+      <div class="bug">
+        <div class="card">
+          <div class="q-foot" style="margin:0"><div class="dots" id="bug-dots"></div><span class="note" id="bug-count"></span></div>
+          <div class="ctx" id="bug-ctx"></div>
+          <div class="lines" id="bug-lines"></div>
+        </div>
+        <div class="card">
+          <div class="fb" id="bug-fb"></div>
+          <div class="q-foot"><span class="note" id="bug-score"></span><button class="btn primary" id="bug-next">Next message →</button></div>
+        </div>
+      </div>
+
+      <div class="run">
+        <div class="card">
+          <h3>▶ Try it for real</h3>
+          <pre class="json"><span class="c"># the official MCP Inspector (Node 22.19+), no install</span>
+npx @modelcontextprotocol/inspector
+
+<span class="c"># or start it against a local server you're building</span>
+npx @modelcontextprotocol/inspector node path/to/server/index.js
+
+<span class="c"># or against a published reference server</span>
+npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-filesystem ~/Desktop
+
+<span class="c"># or a remote Streamable HTTP server (use your own URL)</span>
+npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto</pre>
+        </div>
+        <div class="card">
+          <h3>👀 What to notice</h3>
+          <ul class="bullets">
+            <li>Pin the <b>monitoring sidebar</b>: every JSON-RPC message appears there as you click</li>
+            <li>List tools, then call one: the response reuses the request's <b>id</b></li>
+            <li>Call a tool with a wrong name, then with bad arguments: one is a <b>protocol error</b>, the other usually a <b>result with isError</b></li>
+            <li>Open a request and find its <code>_meta</code> with the protocol version</li>
+          </ul>
+          <p class="note" style="margin:0">Commands from the official <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector docs</a>. store.example.com is the course's fictional server.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>Every message is a <b>request</b> (has an id), a <b>response</b> (same id, result or error) or a <b>notification</b> (no id, no reply).</li>
+          <li>Broken requests get a JSON-RPC <b>error</b>. Failed operations get a <b>result</b> with <code>isError: true</code> the model can act on.</li>
+          <li>In 2026-07-28 every request is <b>self-contained</b>: <code>_meta</code> carries the version and capabilities.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const json = (o) => esc(JSON.stringify(o, null, 2));
+
+    /* ---------- Explore: wire inspector ---------- */
+    const META = {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientInfo": { name: "shop-assistant", version: "1.0.0" },
+      "io.modelcontextprotocol/clientCapabilities": {}
+    };
+    const COLORS = ["#7c6cf0", "#1f9d63", "#c98a0b", "#0b8fc9", "#d64545", "#b45cc8"];
+    const TIPS = {
+      list: "The response reuses the request's <b>id</b>. That's how the client knows which question it answers.",
+      call: "A tool result has <b>content</b> for the model and, often, <b>structuredContent</b> for code.",
+      read: "Resources are read by <b>URI</b>. The store server uses <code>shop://</code> URIs.",
+      listen: "The subscription is a request that stays open. Its <b>id</b> becomes the subscriptionId on every notification.",
+      update: "", noSub: "Stock changed, but no update arrived: nobody subscribed. Tap <b>Subscribe</b> first, then change stock again."
+    };
+    let msgs = [], nextId = 1, subId = null, qty = 14;
+    const colorOf = (id) => COLORS[(id - 1) % COLORS.length];
+
+    function push(m) { msgs.push(m); if (msgs.length > 8) msgs.shift(); }
+    function request(method, params, note) {
+      const id = nextId++;
+      push({ side: "client", type: "req", id, method, body: { jsonrpc: "2.0", id, method, params: { ...params, _meta: META } }, note });
+      return id;
+    }
+    function respond(id, method, result, note) {
+      push({ side: "server", type: "res", id, method, body: { jsonrpc: "2.0", id, result: { resultType: "complete", ...result } }, note });
+    }
+    function notify(method, params, linkId) {
+      push({ side: "server", type: "note", id: null, link: linkId, method, body: { jsonrpc: "2.0", method, params } });
+    }
+
+    const ACTIONS = {
+      list() {
+        const id = request("tools/list", {});
+        respond(id, "tools/list", {
+          tools: [{ name: "search_products", title: "Search products",
+            description: "Search the store's products by text, one page at a time. …",
+            annotations: { readOnlyHint: true, openWorldHint: true } }]
+        }, "Shortened: 1 of 10 tools, schemas left out.");
+      },
+      call() {
+        const id = request("tools/call", { name: "get_stock_level", arguments: { productId: 101 } });
+        respond(id, "tools/call", { content: [{ type: "text", text: `Ceramic Pour-Over Set: ${qty} in stock.` }] },
+          "Shortened: structuredContent left out.");
+      },
+      read() {
+        const id = request("resources/read", { uri: "shop://products/101" });
+        respond(id, "resources/read", { contents: [{ uri: "shop://products/101", mimeType: "application/json",
+          text: JSON.stringify({ id: 101, name: "Ceramic Pour-Over Set", stock: qty }) }] }, "Shortened product JSON.");
+      },
+      listen() {
+        if (subId) return "already";
+        const id = request("subscriptions/listen", { notifications: { resourceSubscriptions: ["shop://products/101"] } });
+        subId = id;
+        notify("notifications/subscriptions/acknowledged", {
+          _meta: { "io.modelcontextprotocol/subscriptionId": id },
+          notifications: { resourceSubscriptions: ["shop://products/101"] }
+        }, id);
+      },
+      update() {
+        const before = qty; qty += 24;
+        const id = request("tools/call", { name: "update_stock",
+          arguments: { productId: 101, operation: "increment", quantity: 24, reason: "Delivery received" } });
+        respond(id, "tools/call", { content: [{ type: "text", text: `Stock for "Ceramic Pour-Over Set" changed from ${before} to ${qty}.` }] },
+          "In a real host, a human approves this write first.");
+        if (subId) notify("notifications/resources/updated", {
+          _meta: { "io.modelcontextprotocol/subscriptionId": subId }, uri: "shop://products/101" }, subId);
+        else return "noSub";
+      }
+    };
+
+    function renderWire(open) {
+      const w = $("wire");
+      if (!msgs.length) {
+        w.innerHTML = `<div class="ghost"><div style="font-size:32px">📡</div><div>No traffic yet.</div><div class="note">Tap an action above.</div></div>`;
+      } else {
+        w.innerHTML = msgs.map((m, i) => {
+          const cid = m.id ?? m.link;
+          const c = cid ? colorOf(cid) : "var(--line)";
+          const chip = m.type === "req" ? `<span class="chip req">Request</span>`
+            : m.type === "res" ? `<span class="chip res">Response</span>` : `<span class="chip note-c">Notification</span>`;
+          const idc = m.id ? `<span class="idc">id ${m.id}</span>`
+            : m.link ? `<span class="idc">no id · sub ${m.link}</span>` : `<span class="idc none">no id</span>`;
+          const dir = m.side === "client" ? "client → server" : "server → client";
+          return `<details class="msg ${m.side}" style="--c:${c}" ${open && i === msgs.length - 1 ? "open" : ""}>
+            <summary>${chip}<span class="meth">${esc(m.method)}</span><span class="dir">${dir}</span>${idc}</summary>
+            <pre class="json">${json(m.body)}</pre>${m.note ? `<p class="note" style="margin:-4px 12px 12px">${esc(m.note)}</p>` : ""}</details>`;
+        }).join("");
+      }
+      const n = (t) => msgs.filter((m) => m.type === t).length;
+      $("counts").innerHTML = `<span class="chip req">${n("req")} requests</span><span class="chip res">${n("res")} responses</span><span class="chip note-c">${n("note")} notifications</span>`;
+    }
+    $("actions").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-act]");
+      if (!b) return;
+      const act = b.dataset.act;
+      const out = ACTIONS[act]();
+      $("wire-tip").innerHTML = out === "already" ? "You're already subscribed. Tap <b>Change stock</b> to see an update arrive on that subscription."
+        : out === "noSub" ? TIPS.noSub
+        : act === "update" ? "The update notification has <b>no id</b>. Its subscriptionId points back to the open <code>subscriptions/listen</code> request."
+        : TIPS[act];
+      renderWire(true);
+    });
+    $("wire-clear").addEventListener("click", () => {
+      msgs = []; nextId = 1; subId = null; qty = 14;
+      $("wire-tip").innerHTML = "Start with <b>List tools</b>. Tap any message to open its JSON.";
+      renderWire();
+    });
+    renderWire();
+
+    /* ---------- Learn: method names ---------- */
+    const METHODS = [
+      ["Discover", [
+        ["server/discover", "Learn the server's supported versions up front. Every modern server must implement it; clients may skip it."],
+        ["initialize", "Legacy (2025-era and earlier) only: the handshake that opened a session. Modern requests carry _meta instead.", 1],
+        ["tools/list", "Ask which tools the server offers, with their input and output schemas."],
+        ["resources/list", "List concrete resources, like shop://store/info."],
+        ["resources/templates/list", "List URI templates, like shop://products/{productId}."],
+        ["prompts/list", "List the prompt templates the server provides."]]],
+      ["Use", [
+        ["tools/call", "Run one tool with arguments. Returns content, maybe structuredContent, maybe isError."],
+        ["resources/read", "Read the contents of one resource by URI."],
+        ["prompts/get", "Render one prompt with arguments into messages."],
+        ["completion/complete", "Suggest values for a prompt or template argument as the user types."]]],
+      ["Stay updated", [
+        ["subscriptions/listen", "A long-lived request: the response is an open stream of the notifications you asked for."],
+        ["notifications/subscriptions/acknowledged", "First message on a stream: which notification types the server agreed to send."],
+        ["resources/subscribe", "Legacy (2025-era) only. Replaced by subscriptions/listen; dual-era clients still use it with legacy servers.", 1]]],
+      ["One-way notifications", [
+        ["notifications/resources/updated", "A subscribed resource changed. Read it again if you need the new content."],
+        ["notifications/tools/list_changed", "The tool list changed. Call tools/list again."],
+        ["notifications/progress", "Progress on a long request that opted in with a progressToken."],
+        ["notifications/cancelled", "Stop working on a request that's in progress. Used on stdio; over Streamable HTTP, closing the request's response stream cancels it."]]]
+    ];
+    let mActive = "tools/call";
+    function renderMethods() {
+      $("methods").innerHTML = METHODS.map(([g, list]) => `<div class="mgroup"><h4>${g}</h4><div class="mlist">${
+        list.map(([m, , legacy]) => `<button class="mbtn ${legacy ? "legacy" : ""} ${m === mActive ? "active" : ""}" data-m="${m}">${m}${legacy ? " · legacy" : ""}</button>`).join("")}</div></div>`).join("");
+      const d = METHODS.flatMap(([, l]) => l).find(([m]) => m === mActive);
+      const kind = d[2] ? `<span class="chip err">Legacy</span>`
+        : mActive.startsWith("notifications/") ? `<span class="chip note-c">Notification</span>` : `<span class="chip req">Request</span>`;
+      $("mdesc").innerHTML = `${kind}<code>${d[0]}</code><span>${d[1]}</span>`;
+    }
+    $("methods").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-m]");
+      if (b) { mActive = b.dataset.m; renderMethods(); }
+    });
+    renderMethods();
+
+    /* ---------- Learn: pagination ---------- */
+    const PAGES = [
+      { items: ["store/info", "store/settings", "catalog"], next: "c1-op4que" },
+      { items: ["products/101", "products/102", "products/103"], next: "c2-x9k" },
+      { items: ["products/104", "products/105"], next: null }
+    ];
+    let pg = 0, pgShowRes = false;
+    function renderPager() {
+      const p = PAGES[pg];
+      const params = pg === 0 ? {} : { cursor: PAGES[pg - 1].next };
+      const req = { jsonrpc: "2.0", id: 20 + pg * 2, method: "resources/list", params };
+      const res = { jsonrpc: "2.0", id: 20 + pg * 2, result: { resultType: "complete",
+        resources: p.items.map((u) => ({ uri: "shop://" + u, name: u })), ...(p.next ? { nextCursor: p.next } : {}) } };
+      $("pg-title").textContent = pgShowRes ? `Page ${pg + 1} arrives` : `Request page ${pg + 1}`;
+      $("pg-json").innerHTML = json(pgShowRes ? res : req);
+      $("pg-dots").innerHTML = PAGES.map((_, i) => `<i class="${i <= pg ? "on" : ""}"></i>`).join("");
+      const last = pgShowRes && !p.next;
+      $("pg-next").textContent = !pgShowRes ? "Send request →" : last ? "✓ No nextCursor: done" : "Fetch next page →";
+      $("pg-next").disabled = last;
+    }
+    $("pg-next").addEventListener("click", () => {
+      if (!pgShowRes) pgShowRes = true;
+      else if (PAGES[pg].next) { pg++; pgShowRes = false; }
+      renderPager();
+    });
+    $("pg-reset").addEventListener("click", () => { pg = 0; pgShowRes = false; renderPager(); });
+    renderPager();
+
+    /* ---------- Errors ---------- */
+    const ERRS = [
+      { label: "🔤 Misspelled tool name", kind: "protocol",
+        body: { jsonrpc: "2.0", id: 3, error: { code: -32602, message: "Unknown tool: search_prodcts" } },
+        what: "The request names a tool that doesn't exist.", fixer: "The developer or the client, not the model's retry", sdk: "Client SDKs usually raise this as an exception, not a result. Log it and fix the caller." },
+      { label: "🚫 Order can't move back", kind: "tool",
+        body: { jsonrpc: "2.0", id: 4, result: { resultType: "complete", isError: true,
+          content: [{ type: "text", text: "INVALID_TRANSITION: Cannot move order 5001 from \"completed\" to \"processing\"." }] } },
+        what: "A valid call that a business rule refuses. A completed order is final.", fixer: "The model: it can explain or choose another action", sdk: "Return a result with isError: true and a stable code the server defines. INVALID_TRANSITION is an example convention, not a spec code." },
+      { label: "🌩️ Store is down", kind: "tool",
+        body: { jsonrpc: "2.0", id: 5, result: { resultType: "complete", isError: true,
+          content: [{ type: "text", text: "UPSTREAM_UNAVAILABLE: The inventory system is temporarily unavailable. Try again shortly." }] } },
+        what: "The call was fine; the store's inventory system didn't answer in time.", fixer: "Retry later. Mark codes like this as retryable", sdk: "Map upstream timeouts and outages to one retryable example code, such as UPSTREAM_UNAVAILABLE." },
+      { label: "🧩 Body isn't JSON", kind: "protocol",
+        body: { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" } },
+        what: "The bytes couldn't be parsed, so the server couldn't read the id.", fixer: "The developer: a client bug", sdk: "This is the one case where an error response may leave out the id." },
+      { label: "❓ Unknown method", kind: "protocol",
+        body: { jsonrpc: "2.0", id: 6, error: { code: -32601, message: "Method not found" } },
+        what: "The client called tools/run, which isn't an MCP method.", fixer: "The developer: use tools/call", sdk: "Method names are fixed by the spec. Typos never reach your tool code." },
+      { label: "🧾 Missing _meta version", kind: "protocol",
+        body: { jsonrpc: "2.0", id: 7, error: { code: -32602, message: "Invalid params: missing io.modelcontextprotocol/protocolVersion" } },
+        what: "A 2026-07-28 request without its required _meta fields.", fixer: "The client: every request must carry them", sdk: "Over HTTP the status must also be 400 Bad Request." }
+    ];
+    let eActive = 1;
+    function renderErr() {
+      $("err-pick").innerHTML = ERRS.map((x, i) => `<button class="btn ${i === eActive ? "active" : ""}" data-e="${i}">${x.label}</button>`).join("");
+      const x = ERRS[eActive];
+      const isTool = x.kind === "tool";
+      $("err-title").textContent = isTool ? "Response: a result with isError" : "Response: a JSON-RPC error";
+      $("err-json").innerHTML = json(x.body);
+      $("err-verdict").innerHTML = `
+        <span class="chip ${isTool ? "res" : "err"}" style="align-self:flex-start">${isTool ? "Tool execution error" : "Protocol error"}</span>
+        <div class="big">${isTool ? "The call worked. The operation didn't." : "The request itself was broken."}</div>
+        <dl>
+          <dt>What</dt><dd>${esc(x.what)}</dd>
+          <dt>Who fixes it</dt><dd>${esc(x.fixer)}</dd>
+          <dt>In code</dt><dd>${esc(x.sdk)}</dd>
+        </dl>
+        <p class="note" style="margin:0">${isTool ? "Clients should pass tool execution errors to the model so it can self-correct." : "Clients may show these to the model, but it rarely helps: the fix is in code."}</p>`;
+    }
+    $("err-pick").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-e]");
+      if (b) { eActive = +b.dataset.e; renderErr(); }
+    });
+    renderErr();
+
+    /* ---------- Try: spot the bug ---------- */
+    const BUGS = [
+      { ctx: "A client asks for the tool list.", lines: [["{"], ['  "jsonrpc": "1.0",', 1], ['  "id": 12,'], ['  "method": "tools/list",'], ['  "params": {}'], ["}"]],
+        why: "MCP messages must use JSON-RPC 2.0, so jsonrpc is always the string \"2.0\"." },
+      { ctx: "A client calls a tool.", lines: [["{"], ['  "jsonrpc": "2.0",'], ['  "id": null,', 1], ['  "method": "tools/call",'], ['  "params": { "name": "get_order", … }'], ["}"]],
+        why: "Plain JSON-RPC tolerates a null id, but MCP forbids it. Use a string or an integer." },
+      { ctx: "The server says a product changed.", lines: [["{"], ['  "jsonrpc": "2.0",'], ['  "id": 9,', 1], ['  "method": "notifications/resources/updated",'], ['  "params": { "uri": "shop://products/101" }'], ["}"]],
+        why: "Notifications must not include an id. The id is what would make the client expect a reply." },
+      { ctx: "The server answers request id 14.", lines: [["{"], ['  "jsonrpc": "2.0",'], ['  "id": 14,'], ['  "result": { "resultType": "complete", "tools": [] },', 1], ['  "error": { "code": -32603, "message": "Internal error" }', 1], ["}"]],
+        why: "A response carries a result or an error, never both. Either line is the bug." },
+      { ctx: "The client sent request id 12. This is the reply.", lines: [["{"], ['  "jsonrpc": "2.0",'], ['  "id": 21,', 1], ['  "result": { "resultType": "complete", "contents": [ … ] }'], ["}"]],
+        why: "A response must reuse the request's id. With 21, the client can't match it to request 12." },
+      { ctx: "The server rejects a bad cursor.", lines: [["{"], ['  "jsonrpc": "2.0",'], ['  "id": 30,'], ['  "error": {'], ['    "code": "-32602",', 1], ['    "message": "Invalid cursor"'], ["  }"], ["}"]],
+        why: "Error codes must be integers. \"-32602\" in quotes is a string." }
+    ];
+    let bi = 0, bRes = [], bDone = false;
+    function renderBug() {
+      const b = BUGS[bi];
+      $("bug-dots").innerHTML = BUGS.map((_, i) => `<i class="${bRes[i] === true ? "good" : bRes[i] === false ? "bad" : ""}"></i>`).join("");
+      $("bug-count").textContent = `Message ${bi + 1} of ${BUGS.length}`;
+      $("bug-ctx").textContent = b.ctx;
+      $("bug-lines").innerHTML = b.lines.map(([t, bad], i) => {
+        const isStatic = t === "{" || t === "}" || t === "  }";
+        if (isStatic) return `<div class="line static">${esc(t)}</div>`;
+        const cls = bDone && bad ? "right" : "";
+        return `<button class="line pick ${cls}" data-l="${i}" ${bDone ? "disabled" : ""}>${esc(t)}</button>`;
+      }).join("");
+      if (!bDone) $("bug-fb").innerHTML = `<div class="hint">🔍 Read each line against the rules. Tap the one that breaks MCP.</div>`;
+      const score = bRes.filter(Boolean).length;
+      $("bug-score").textContent = `${score} found first try`;
+      const last = bi === BUGS.length - 1;
+      $("bug-next").textContent = bDone && last ? "↺ Start over" : "Next message →";
+      $("bug-next").disabled = !bDone;
+    }
+    $("bug-lines").addEventListener("click", (e) => {
+      const l = e.target.closest("[data-l]");
+      if (!l || bDone) return;
+      const b = BUGS[bi], bad = !!b.lines[+l.dataset.l][1];
+      bRes[bi] = bad; bDone = true;
+      renderBug();
+      if (!bad) l.classList.add("wrong");
+      const sel = $("bug-lines").querySelector(`[data-l="${l.dataset.l}"]`);
+      if (!bad && sel) sel.classList.add("wrong");
+      $("bug-fb").innerHTML = `<b class="${bad ? "good" : "bad"}">${bad ? "✓ Found it." : "✗ Not that line. The highlighted one is the bug."}</b><div>${esc(b.why)}</div>`;
+    });
+    $("bug-next").addEventListener("click", () => {
+      if (bi === BUGS.length - 1) { bi = 0; bRes = []; }
+      else bi++;
+      bDone = false; renderBug();
+    });
+    renderBug();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["📦 Return text and data", "return { content: [{ type: \"text\", text: JSON.stringify(stock) }], structuredContent: stock }",
+        "If a tool declares an outputSchema, its structuredContent must match it. Keep the text copy in sync for clients that only read text.",
+        "Inspector Tools tab: call get_stock_level and compare the text block with the structured data."],
+      ["🚫 Fail as a result, not a throw", "return { isError: true, content: [{ type: \"text\", text: \"INVALID_TRANSITION: order 5001 is completed\" }] }",
+        "Throwing turns a business rule into a protocol error. The model can't read it or recover.",
+        "Call update_order_status on a completed order. Expect a normal result with isError: true."],
+      ["🏷️ Stable error codes", "const RETRYABLE = new Set([\"RATE_LIMITED\", \"UPSTREAM_UNAVAILABLE\"])  // pseudocode",
+        "These codes are your own convention, not the spec's. Document them and say which ones are safe to retry.",
+        "Stop the upstream system, call a tool, and check you get one clear retryable code, not a stack trace."],
+      ["🧯 Protocol errors in the client", "catch (err) { if (err.code === -32601 || err.code === -32602) report(err) }  // pseudocode",
+        "Don't hand -32601 or -32602 to the model as if it could fix them. They mean the caller is wrong.",
+        "Call a misspelled tool name and read the JSON-RPC error code in the Inspector."],
+      ["🕰️ Stamp every request", "params._meta = { \"io.modelcontextprotocol/protocolVersion\": \"2026-07-28\", \"io.modelcontextprotocol/clientCapabilities\": {} }",
+        "SDKs usually add _meta for you. A hand-rolled client that forgets it gets -32602 and HTTP 400.",
+        "Open any request in the Inspector's monitor and find the _meta keys."],
+      ["📡 One listen, many updates", "request(\"subscriptions/listen\", { notifications: { resourceSubscriptions: [\"shop://products/101\"] } })  // pseudocode",
+        "Every update carries the listen request's id as its subscriptionId. Route updates by it, not by guesswork.",
+        "Subscribe to a resource, change it, and watch notifications/resources/updated arrive in the monitor."]
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p><code>${esc(code)}</code></p>
+          <div class="lbl">Watch out</div><p>${esc(watch)}</p>
+          <div class="lbl">Verify</div><p>${esc(verify)}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(2);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

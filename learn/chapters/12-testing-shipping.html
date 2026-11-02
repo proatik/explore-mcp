@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Testing & Shipping · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .lbl { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    code { overflow-wrap: anywhere; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+    /* ---------- Explore: pyramid ---------- */
+    #explore .two > .card:first-child { display: flex; flex-direction: column; }
+    .bugs { display: grid; grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 8px; flex: 1; }
+    .bug { font: inherit; text-align: left; cursor: pointer; min-height: 52px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); display: flex; gap: 10px; align-items: center; }
+    .bug .ic { font-size: 20px; flex: none; }
+    .bug .st { margin-left: auto; font-size: 12px; font-weight: 800; flex: none; }
+    .bug.sel { border-color: var(--accent); background: var(--accent-soft); }
+    .bug.ok { border-color: var(--good); }
+    .bug.ok .st { color: var(--good); }
+    .bug.no { border-color: var(--bad); }
+    .bug.no .st { color: var(--bad); }
+    .pyr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .tier { font: inherit; cursor: pointer; min-height: 56px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); padding: 8px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: border-color .2s, background .2s; }
+    .tier b { font-size: 14px; }
+    .tier small { font-size: 11.5px; color: var(--muted); }
+    .tier.ready { border-color: var(--accent); }
+    .tier.hit { background: var(--accent-soft); border-color: var(--accent); }
+    .pyr-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 10px; gap: 8px; }
+    .fbx { margin-top: 14px; min-height: 64px; font-size: 14px; }
+    .fbx b.good { color: var(--good); }
+    .fbx b.bad { color: var(--bad); }
+
+    /* ---------- Learn ---------- */
+    .layer h3 { margin: 6px 0 4px; font-size: 18px; }
+    .layer .meta { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+    .layer .meta span { font-size: 12px; background: var(--surface-2); padding: 3px 10px; border-radius: 999px; }
+    .layer ul { margin: 6px 0 0; }
+    .layer .ex { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+    .asserts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 760px) { .asserts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .asserts .card { padding: 16px; }
+    .asserts h4 { margin: 4px 0 6px; font-size: 15px; }
+    .asserts p { margin: 0; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+
+    /* ---------- Debug ---------- */
+    .insp-body { margin-top: 14px; }
+    .logs { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; min-height: 248px; }
+    .code-sm { font-size: 12px; }
+    .logline { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); overflow-wrap: break-word; border-left: 4px solid var(--line); }
+    .logline.debug { border-left-color: var(--muted); }
+    .logline.info { border-left-color: var(--accent); }
+    .logline.warn { border-left-color: var(--warn); }
+    .logline.error { border-left-color: var(--bad); }
+    .logline .red { color: var(--good); font-weight: 700; }
+    .hidden-n { font-size: 12.5px; color: var(--muted); text-align: center; }
+
+    /* ---------- Ship ---------- */
+    .lane { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; }
+    .lane + .lane { margin-top: 12px; }
+    @media (max-width: 640px) { .lane { grid-template-columns: 1fr; } }
+    .lane-name { font-weight: 800; font-size: 14px; }
+    .lane-name small { display: block; color: var(--muted); font-weight: 600; font-size: 12px; }
+    .steps-row { display: grid; gap: 8px; }
+    .steps-row.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .steps-row.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 640px) { .steps-row.n4, .steps-row.n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .ci { font: inherit; cursor: pointer; min-height: 56px; padding: 8px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); font-weight: 700; font-size: 13px; }
+    .ci.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ci-panel { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 760px) { .ci-panel { grid-template-columns: 1fr; } }
+    .ci-panel .wide { grid-column: 1 / -1; }
+    .ci-panel h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+    .target .port { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; color: var(--muted); }
+    .target h3 { margin: 6px 0 4px; }
+
+    /* ---------- Try ---------- */
+    .quiz { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-case { font-size: 18px; font-weight: 700; min-height: 84px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; }
+    .q-btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    @media (max-width: 640px) { .q-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .q-btns .btn { min-height: 52px; }
+    .q-btns .btn.right { background: var(--good-soft); border-color: var(--good); }
+    .q-btns .btn.wrong { background: var(--bad-soft); border-color: var(--bad); }
+    .fb { min-height: 66px; font-size: 14px; color: var(--muted); text-align: center; }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .q-foot { display: flex; justify-content: center; gap: 12px; }
+    .q-foot .btn { min-height: 44px; }
+    .run { margin-top: 16px; }
+    .run h3 { margin: 0 0 4px; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+    .step { display: flex; flex-direction: column; gap: 6px; }
+    .step .n { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 19px; font-weight: 700; }
+    .flip, .flip-inner { min-height: 290px; }
+    .flip-back { justify-content: flex-start; padding: 14px 16px; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 8px 0 0; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+    .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 12 Testing &amp; Shipping</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 12 · Testing &amp; Shipping</div>
+      <h1>Catch it cheap.<br>Ship it boring.</h1>
+      <p>How to prove an MCP server, client and agent work, and how to get them to production.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#learn">💡 Learn</a>
+        <a href="#debug">🔍 Debug</a>
+        <a href="#ship">🚢 Ship</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Where would this bug be caught?</h2>
+      <p class="sub">Tap a bug, then the cheapest layer of the test pyramid that would catch it.</p>
+
+      <div class="two">
+        <div class="card">
+          <div class="lbl">🐞 Six bugs in the store server</div>
+          <div class="bugs" id="bugs"></div>
+        </div>
+        <div class="card">
+          <div class="lbl">🔺 A test pyramid</div>
+          <div class="pyr" id="pyr"></div>
+          <div class="pyr-axis"><span>⬆ slower, fewer, wider</span><span>⬇ faster, many, focused</span></div>
+          <div class="fbx" id="ex-fb"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LEARN ================= -->
+    <section class="section" id="learn">
+      <span class="step-label">💡 Learn</span>
+      <h2>Three automated layers</h2>
+      <p class="sub">All run in your test runner (e.g. Vitest, Jest or pytest). Each layer uses more real parts than the one below.</p>
+      <div class="grid grid-3" id="layers"></div>
+
+      <h2 style="margin-top:40px">Testing an agent without a model</h2>
+      <p class="sub">A real LLM is slow, costs money and answers differently each time. Script it instead.</p>
+      <div class="two">
+        <div class="card">
+          <div class="lbl">Pseudocode · an end-to-end agent test</div>
+          <pre class="json code-sm">const llm = scriptedModel([
+  callTools({
+    name: 'get_stock_level',
+    args: { productId: 101 }
+  }),
+  say('Ceramic Pour-Over Set: 3 left.')
+]);
+
+// agent → client → store server → mock store
+const result = await agent.run(
+  'How many pour-over sets are left?',
+  { llm }
+);
+
+expect(result.toolCalls[0].outcome)
+  .toBe('ok');</pre>
+        </div>
+        <div class="card">
+          <div class="lbl">Why it works</div>
+          <ul class="bullets">
+            <li><b>Each step is a function</b> of the conversation so far, like a real model's turn.</li>
+            <li><code>callTools()</code> makes the "model" request tools; <code>say()</code> makes it answer.</li>
+            <li>Everything below the model is <b>real</b>: agent loop, approval policy, MCP client, store server, mock store.</li>
+            <li>If the script runs out of steps, <b>throw</b>, so a loop that never stops fails loudly.</li>
+            <li>Cover approval, declined writes, tool errors fed back to the model, hallucinated tools and the step budget.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">What good tests assert</h2>
+      <p class="sub">Six behaviors worth pinning down in any MCP server. Test names are examples.</p>
+      <div class="asserts" id="asserts"></div>
+    </section>
+
+    <!-- ================= DEBUG ================= -->
+    <section class="section" id="debug">
+      <span class="step-label">🔍 Debug</span>
+      <h2>MCP Inspector: a client for humans</h2>
+      <p class="sub">The official debugging tool. Connect to a running server and click through tools, resources and prompts.</p>
+
+      <div class="card">
+        <div class="seg" id="insp-seg"></div>
+        <div class="insp-body" id="insp-body"></div>
+      </div>
+      <p class="note" style="margin-top:10px">Usage follows the official docs at modelcontextprotocol.io. The Inspector needs Node 22.19 or newer, so check <code>node -v</code> first.</p>
+
+      <h2 style="margin-top:40px">Logs the operator can trust</h2>
+      <p class="sub">Write one JSON line per event. Pick a level to see what survives.</p>
+      <div class="two">
+        <div class="card">
+          <div class="seg" id="lvl-seg"></div>
+          <div class="logs" id="logs"></div>
+          <div class="hidden-n" id="hidden-n"></div>
+        </div>
+        <div class="card">
+          <div class="lbl">A logger worth having</div>
+          <ul class="bullets">
+            <li><b>JSON lines</b> on stderr: time, level, logger, message, plus context.</li>
+            <li><b>A request ID</b> on every line, from an <code>x-request-id</code> header or a fresh UUID, echoed back in the response.</li>
+            <li><b>Redaction</b>: keys like <code>token</code>, <code>authorization</code>, <code>email</code> or <code>phone</code> become <code>[redacted]</code>.</li>
+            <li><b>A level setting</b> (e.g. <code>LOG_LEVEL</code>): debug · info · warn · error. Tests run silent.</li>
+            <li><b>Logs stay with the operator.</b> Revision 2026-07-28 deprecates the MCP logging capability, so don't plan on sending logs to clients.</li>
+          </ul>
+          <p class="note">Sample lines are illustrative.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SHIP ================= -->
+    <section class="section" id="ship">
+      <span class="step-label">🚢 Ship</span>
+      <h2>A CI pipeline</h2>
+      <p class="sub">Two jobs a typical MCP server project runs. Tap a step to see what it proves.</p>
+
+      <div class="card">
+        <div class="lane">
+          <div class="lane-name">Job 1 · test<small>every push and pull request</small></div>
+          <div class="steps-row n4" id="lane-test"></div>
+        </div>
+        <div class="lane">
+          <div class="lane-name">Job 2 · docker<small>needs: test</small></div>
+          <div class="steps-row n3" id="lane-docker"></div>
+        </div>
+        <div class="ci-panel" id="ci-panel"></div>
+      </div>
+
+      <h2 style="margin-top:40px">One Dockerfile, three images</h2>
+      <p class="sub">A shared build stage, then a small runtime image per service. <code>docker compose</code> wires them together.</p>
+      <div class="grid grid-3" id="targets"></div>
+
+      <h2 style="margin-top:40px">Config comes from the environment</h2>
+      <p class="sub">Example variable names. Commit a <code>.env.example</code> with safe defaults; the real <code>.env</code> never gets committed.</p>
+      <div class="grid grid-3" id="envs"></div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Pick the test</h2>
+      <p class="sub">You're about to change something. Which layer must you update or run first?</p>
+
+      <div class="card quiz">
+        <div class="dots" id="q-dots"></div>
+        <div class="q-case" id="q-case"></div>
+        <div class="q-btns" id="q-btns"></div>
+        <div class="fb" id="q-fb"></div>
+        <div class="q-foot"><button class="btn" id="q-next">Next →</button></div>
+      </div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="note">In your own MCP server project. Script names are examples; use whatever your project defines.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1 · WHAT CI RUNS</span><pre class="json">npm ci
+npm run typecheck
+npm test
+npm run build</pre></div>
+          <div class="step"><span class="n">2 · ONE LAYER AT A TIME</span><pre class="json">npx vitest run tests/integration
+npx vitest run tests/e2e</pre></div>
+          <div class="step"><span class="n">3 · THE DOCKER SMOKE TEST</span><pre class="json">docker compose up -d --build --wait
+docker compose run --rm smoke-client</pre></div>
+          <div class="step"><span class="n">4 · INSPECT BY HAND</span><pre class="json">npx @modelcontextprotocol/inspector \
+  --server-url http://localhost:3000/mcp \
+  --transport http --protocol-era auto \
+  --header "Authorization: Bearer $TOKEN"</pre></div>
+        </div>
+        <p class="note" style="margin-top:10px">Health check while the server runs: <code>curl http://localhost:3000/healthz</code> should return <code>{"status":"ok"}</code>. Use a dev-only token, never a production one. Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a>.</p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>Test each bug at the <b>cheapest layer</b> that can catch it: unit → integration → end to end.</li>
+          <li>Script the model so agent tests are <b>fast and repeatable</b>; keep everything below it real.</li>
+          <li>Ship <b>boring</b>: frozen lockfile, typecheck, tests, a health check, and logs with request IDs and no secrets.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+
+    /* ---------- Explore ---------- */
+    const TIERS = [
+      { k: "insp", ic: "🔍", t: "Inspector", s: "manual, by a human", w: 44 },
+      { k: "docker", ic: "🐳", t: "Docker smoke", s: "CI, real containers", w: 58 },
+      { k: "e2e", ic: "🔗", t: "End to end", s: "scripted model → real stack", w: 72 },
+      { k: "int", ic: "🧪", t: "Integration", s: "real server + mock upstream", w: 86 },
+      { k: "unit", ic: "🧱", t: "Unit", s: "one module, no network", w: 100 },
+    ];
+    const BUGS = [
+      { ic: "🔑", t: "A log line prints the bearer token", ans: "unit", why: "Test the <code>redact()</code> step directly: pass a context holding a token and assert it comes out as <code>[redacted]</code>. No server needed." },
+      { ic: "⏱️", t: "The rate limit never resets", ans: "unit", why: "The limiter is a small pure module. Feed it a fake clock and assert it blocks after the limit and resets with the window." },
+      { ic: "🔓", t: "A read-only client can change stock", ans: "int", why: "Scopes are checked inside the running server. Call <code>update_stock</code> through a real client with a read-only token and expect a tool error." },
+      { ic: "🤖", t: "The agent gives up when a tool returns a business error", ans: "e2e", why: "Only the full loop shows it. Script a model that hits an error and assert the error goes back to the model instead of failing the run." },
+      { ic: "🩺", t: "The server image never turns healthy", ans: "docker", why: "Only the built image runs its <code>HEALTHCHECK</code>. <code>docker compose up --wait</code> fails if <code>/healthz</code> never answers." },
+      { ic: "📝", t: "A tool description is confusing to read", ans: "insp", why: "Tests check behavior, not clarity. Read the tool list in the Inspector as a client would, then fix the wording." },
+    ];
+    const placed = BUGS.map(() => null);
+    let selBug = null, lastFb = "";
+    function renderExplore() {
+      $("bugs").innerHTML = BUGS.map((b, i) => {
+        const p = placed[i];
+        const st = p === null ? "" : p === b.ans ? "ok" : "no";
+        const lab = p === null ? "" : (p === b.ans ? "✓ " : "✗ ") + TIERS.find(t => t.k === p).t;
+        return `<button class="bug ${selBug === i ? "sel" : ""} ${st}" data-bug="${i}"><span class="ic">${b.ic}</span><span>${b.t}</span><span class="st">${lab}</span></button>`;
+      }).join("");
+      $("pyr").innerHTML = TIERS.map(t => {
+        const n = placed.filter((p, i) => p === t.k && p === BUGS[i].ans).length;
+        return `<button class="tier ${selBug !== null ? "ready" : ""} ${n ? "hit" : ""}" data-tier="${t.k}" style="width:${t.w}%"><b>${t.ic} ${t.t}${n ? ` · ${n}` : ""}</b><small>${t.s}</small></button>`;
+      }).join("");
+      const right = placed.filter((p, i) => p === BUGS[i].ans).length;
+      $("ex-fb").innerHTML = lastFb || (selBug === null
+        ? `<span class="note">Tap a bug on the left to start. ${right} / ${BUGS.length} placed correctly.</span>`
+        : `<span class="note">Now tap the layer that catches <b>${BUGS[selBug].t.toLowerCase()}</b> cheapest.</span>`);
+    }
+    $("explore").addEventListener("click", e => {
+      const b = e.target.closest("[data-bug]"), t = e.target.closest("[data-tier]");
+      if (b) { selBug = +b.dataset.bug; lastFb = ""; renderExplore(); }
+      else if (t && selBug !== null) {
+        const bug = BUGS[selBug], k = t.dataset.tier;
+        placed[selBug] = k;
+        const right = placed.filter((p, i) => p === BUGS[i].ans).length;
+        lastFb = (k === bug.ans ? `<b class="good">✓ Right.</b> ` : `<b class="bad">✗ Cheaper: ${TIERS.find(x => x.k === bug.ans).t}.</b> `) + bug.why + ` <span class="note">(${right} / ${BUGS.length})</span>`;
+        selBug = null;
+        renderExplore();
+      }
+    });
+    renderExplore();
+
+    /* ---------- Learn ---------- */
+    const LAYERS = [
+      { ic: "🧱", t: "Unit", where: "next to each module", speed: "milliseconds",
+        b: ["One module, no network", "Scope guard, rate limiter, idempotency store, logger, PII masking", "Client side: approval policy, tool adapter, conversation trimming"],
+        ex: "grants listed scopes and rejects the rest" },
+      { ic: "🧪", t: "Integration", where: "a tests/integration folder", speed: "seconds",
+        b: ["The real MCP server over HTTP + a mock upstream store", "Started on random ports for each test file", "Protocol, auth, tools, resources, upstream failures"],
+        ex: "rejects an unknown tool as a protocol error" },
+      { ic: "🔗", t: "End to end", where: "a tests/e2e folder", speed: "seconds",
+        b: ["Scripted model → agent → client → server → mock store", "Proves the whole loop, not one part", "Approval, errors, step budget"],
+        ex: "runs a write only after human approval" },
+    ];
+    $("layers").innerHTML = LAYERS.map(l => `
+      <div class="card layer">
+        <div style="font-size:28px">${l.ic}</div>
+        <h3>${l.t}</h3>
+        <div class="meta"><span>📁 ${l.where}</span><span>⏱️ ${l.speed}</span></div>
+        <ul class="bullets">${l.b.map(x => `<li>${x}</li>`).join("")}</ul>
+        <div class="ex">e.g. <i>${l.ex}</i></div>
+      </div>`).join("");
+
+    const ASSERTS = [
+      ["📐", "Bad input never reaches the handler", "e.g. rejects arguments that fail the input schema before the handler runs"],
+      ["🏷️", "Stable error codes", "e.g. reports a missing product as a NOT_FOUND tool error"],
+      ["🔐", "Scopes and tokens", "e.g. rejects a client without a valid token"],
+      ["🙈", "No personal data leaks", "e.g. returns orders with customer contact details masked"],
+      ["🔁", "Safe retries", "e.g. replays a write retried with the same idempotency key"],
+      ["🔌", "Both protocol eras", "e.g. still serves older 2025-era clients if you support them"],
+    ];
+    $("asserts").innerHTML = ASSERTS.map(([ic, t, ex]) => `
+      <div class="card"><div style="font-size:24px">${ic}</div><h4>${t}</h4><p>${ex}</p></div>`).join("");
+
+    /* ---------- Debug: Inspector ---------- */
+    const URL_ = "http://localhost:3000/mcp";
+    const HDR = '--header "Authorization: Bearer $TOKEN"';
+    const INSP = [
+      { k: "web", t: "🖥️ Web", cmd: `npx @modelcontextprotocol/inspector \\\n  --server-url ${URL_} \\\n  --transport http --protocol-era auto \\\n  ${HDR}`,
+        b: ["Opens a browser UI, with a per-launch token in the URL", "Tabs for tools, resources and prompts", "A monitor shows each JSON-RPC exchange"] },
+      { k: "cli", t: "⌨️ CLI", cmd: `npx @modelcontextprotocol/inspector --cli \\\n  ${URL_} \\\n  --transport http --protocol-era auto \\\n  ${HDR} \\\n  --method tools/list`,
+        b: ["Scriptable and machine-readable", "Good for CI and quick checks", "Swap --method for tools/call, resources/read…"] },
+      { k: "tui", t: "📟 TUI", cmd: `npx @modelcontextprotocol/inspector --tui \\\n  --server-url ${URL_} \\\n  --transport http --protocol-era auto \\\n  ${HDR}`,
+        b: ["Interactive, inside the terminal", "For when a browser isn't handy", "Same connection core as the web UI"] },
+    ];
+    let insp = 0;
+    function renderInsp() {
+      $("insp-seg").innerHTML = INSP.map((x, i) => `<button class="btn ${i === insp ? "active" : ""}" data-insp="${i}">${x.t}</button>`).join("");
+      const x = INSP[insp];
+      $("insp-body").innerHTML = `<div class="two"><pre class="json">${x.cmd}</pre><div><ul class="bullets">${x.b.map(b => `<li>${b}</li>`).join("")}<li>Saved connections keep their headers as written, so keep real tokens out.</li></ul></div></div>`;
+    }
+    $("insp-seg").addEventListener("click", e => { const b = e.target.closest("[data-insp]"); if (b) { insp = +b.dataset.insp; renderInsp(); } });
+    renderInsp();
+
+    /* ---------- Debug: logs ---------- */
+    const ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
+    const LINES = [
+      ["debug", `{"level":"debug","logger":"upstream","message":"store api request","requestId":"7f3c…","method":"GET"}`],
+      ["info", `{"level":"info","logger":"tool","message":"tool call","requestId":"7f3c…","tool":"get_stock_level"}`],
+      ["info", `{"level":"info","logger":"http","message":"http request","requestId":"7f3c…","method":"POST","path":"/mcp","status":200,"durationMs":41}`],
+      ["warn", `{"level":"warn","logger":"upstream","message":"store api request will be retried","requestId":"9a1e…"}`],
+      ["error", `{"level":"error","logger":"http","message":"unhandled request error","requestId":"9a1e…","authorization":<span class="red">"[redacted]"</span>,"error":{"name":"Error","message":"…"}}`],
+    ];
+    let lvl = "info";
+    function renderLogs() {
+      $("lvl-seg").innerHTML = Object.keys(ORDER).map(l => `<button class="btn ${l === lvl ? "active" : ""}" data-lvl="${l}">${l}</button>`).join("");
+      const shown = LINES.filter(([l]) => ORDER[l] >= ORDER[lvl]);
+      $("logs").innerHTML = shown.map(([l, s]) => `<div class="logline ${l}">${s.replace(/,"/g, ',​"')}</div>`).join("");
+      const hid = LINES.length - shown.length;
+      $("hidden-n").textContent = hid ? `Level ${lvl} drops ${hid} lower-level line${hid > 1 ? "s" : ""}.` : "Level debug shows everything.";
+    }
+    $("lvl-seg").addEventListener("click", e => { const b = e.target.closest("[data-lvl]"); if (b) { lvl = b.dataset.lvl; renderLogs(); } });
+    renderLogs();
+
+    /* ---------- Ship: CI ---------- */
+    const CI = {
+      test: [
+        { t: "📦 Install", run: "npm ci", proves: "Dependencies install exactly as the lockfile says.", fails: "Someone added a dependency without committing the updated lockfile." },
+        { t: "🔤 Typecheck", run: "npm run typecheck", proves: "Server, client, mock and tests agree on types.", fails: "A changed function signature or a missing field." },
+        { t: "🧪 Test", run: "npm test", proves: "Unit, integration and end-to-end tests pass.", fails: "Any behavior change the tests pin down." },
+        { t: "🏗️ Build", run: "npm run build", proves: "Each service bundles into its build output.", fails: "A broken import or bundling config." },
+      ],
+      docker: [
+        { t: "🐳 Up + wait", run: "docker compose up -d --build --wait", proves: "Images build and the server's health check turns green.", fails: "A bad Dockerfile, missing env or a crashing start." },
+        { t: "🎬 Smoke client", run: "docker compose run --rm smoke-client", proves: "A real client connects, discovers tools, lists products and reads store info.", fails: "Networking, tokens or allowed hosts between containers." },
+        { t: "📜 Server logs", run: "docker compose logs store-server", proves: "Runs even when earlier steps fail, so you can read what broke.", fails: "Never fails: it's there so you can debug a red run." },
+      ],
+    };
+    let ci = ["test", 0];
+    function ciBtns(lane) {
+      return CI[lane].map((s, i) => `<button class="ci ${ci[0] === lane && ci[1] === i ? "active" : ""}" data-ci="${lane}:${i}">${s.t}</button>`).join("");
+    }
+    function renderCi() {
+      $("lane-test").innerHTML = ciBtns("test");
+      $("lane-docker").innerHTML = ciBtns("docker");
+      const s = CI[ci[0]][ci[1]];
+      $("ci-panel").innerHTML = `
+        <div class="wide"><pre class="json">$ ${s.run}</pre></div>
+        <div><h4>Proves</h4>${s.proves}</div>
+        <div><h4>Turns red when</h4>${s.fails}</div>
+        <div><h4>Why it matters for MCP</h4>${ci[0] === "docker" ? "Clients reach the server over HTTP in production. This proves it across real containers." : "A protocol or schema mismatch caught here never reaches a client."}</div>`;
+    }
+    $("ship").addEventListener("click", e => { const b = e.target.closest("[data-ci]"); if (b) { const [l, i] = b.dataset.ci.split(":"); ci = [l, +i]; renderCi(); } });
+    renderCi();
+
+    const TARGETS = [
+      ["🏪", "mock-store", ":8080", ["Imitates the shop's upstream API", "Lets everything run with no real store", "Never point it at real customer data"]],
+      ["🖥️", "store-server", ":3000/mcp", ["Runs as a non-root user", "HEALTHCHECK hits /healthz every few seconds", "Store credentials live only here"]],
+      ["💬", "smoke-client", "on demand", ["Starts once the server is healthy", "Connects, discovers and calls a read tool", "Exits non-zero if anything fails"]],
+    ];
+    $("targets").innerHTML = TARGETS.map(([ic, n, port, b]) => `
+      <div class="card target"><div style="font-size:28px">${ic}</div><h3>${n}</h3><div class="port">${port}</div>
+      <ul class="bullets">${b.map(x => `<li>${x}</li>`).join("")}</ul></div>`).join("");
+
+    const ENVS = [
+      ["🏪", "Store", ["STORE_API_URL", "STORE_API_KEY", "STORE_TIMEOUT_MS"], "Use a staging store, never production."],
+      ["🖥️", "Server", ["PORT", "CLIENT_TOKENS (tokens + scopes)", "ALLOWED_HOSTS, RATE_LIMIT_PER_MINUTE, LOG_LEVEL"], "Replace dev tokens before any shared deploy."],
+      ["💬", "Client", ["SERVER_URL", "SERVER_TOKEN", "LLM_API_KEY"], "The client never sees store credentials."],
+    ];
+    $("envs").innerHTML = ENVS.map(([ic, t, vars, tip]) => `
+      <div class="card target"><div style="font-size:28px">${ic}</div><h3>${t}</h3>
+      <ul class="bullets">${vars.map(v => `<li><code>${v}</code></li>`).join("")}</ul><p class="note">${tip}</p></div>`).join("");
+
+    /* ---------- Try ---------- */
+    const OPTS = [["unit", "🧱 Unit"], ["int", "🧪 Integration"], ["e2e", "🔗 End to end"], ["docker", "🐳 Docker smoke"]];
+    const QUIZ = [
+      { q: "You add a new tool, get_refund_status.", a: "int", why: "Call it through a real client against the mock store, and check it appears in tools/list with its schema and annotations." },
+      { q: "You lower the max stock change allowed per call.", a: "int", why: "The bound lives in the input schema and the handler's rules. An integration test through a real client proves both reject the call." },
+      { q: "A tool now needs a new scope, refunds:write.", a: "int", why: "Scopes are enforced by the running server per token. Extend the read-only vs write client tests." },
+      { q: "You change the rate limit window from 60s to 30s.", a: "unit", why: "The limiter is a pure module. A unit test with a fake clock covers blocking and resetting in milliseconds." },
+      { q: "You rewrite the agent's system prompt.", a: "e2e", why: "Run the scripted agent tests to prove the loop still works. A real model's wording still needs a manual check." },
+      { q: "You switch the runtime base image to a new Node version.", a: "docker", why: "Only building and starting the images proves it. The compose job waits for the health check and runs the smoke client." },
+    ];
+    let qi = 0, qRes = QUIZ.map(() => null), qPick = null;
+    function renderQuiz() {
+      $("q-dots").innerHTML = QUIZ.map((_, i) => `<i class="${qRes[i] === true ? "good" : qRes[i] === false ? "bad" : ""}"></i>`).join("");
+      if (qi >= QUIZ.length) {
+        const s = qRes.filter(Boolean).length;
+        $("q-case").textContent = `${s >= 5 ? "🏆" : s >= 3 ? "👍" : "🌱"} ${s} / ${QUIZ.length}`;
+        $("q-btns").innerHTML = "";
+        $("q-fb").innerHTML = "Rule of thumb: test where the logic lives, at the cheapest layer that still uses the real parts involved.";
+        $("q-next").textContent = "↺ Restart";
+        return;
+      }
+      const q = QUIZ[qi];
+      $("q-case").textContent = q.q;
+      $("q-btns").innerHTML = OPTS.map(([k, t]) => {
+        const cls = qPick === null ? "" : k === q.a ? "right" : k === qPick ? "wrong" : "";
+        return `<button class="btn ${cls}" data-opt="${k}">${t}</button>`;
+      }).join("");
+      $("q-fb").innerHTML = qPick === null ? `<span class="note">Pick the layer to update or run first.</span>`
+        : (qPick === q.a ? `<b class="good">✓ Right.</b> ` : `<b class="bad">✗ ${OPTS.find(o => o[0] === q.a)[1]}.</b> `) + q.why;
+      $("q-next").textContent = qi === QUIZ.length - 1 ? "See score →" : "Next →";
+    }
+    $("try").addEventListener("click", e => {
+      const o = e.target.closest("[data-opt]");
+      if (o && qPick === null && qi < QUIZ.length) { qPick = o.dataset.opt; qRes[qi] = qPick === QUIZ[qi].a; renderQuiz(); }
+      if (e.target.closest("#q-next")) {
+        if (qi >= QUIZ.length) { qi = 0; qRes = QUIZ.map(() => null); }
+        else qi++;
+        qPick = null; renderQuiz();
+      }
+    });
+    renderQuiz();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["🧪 A real stack per test", "Test setup",
+        "<code>const stack = await startStack({ port: 0 })</code> (pseudocode): mock store + real server on a free port",
+        "Shared ports or shared state between tests make them flaky.",
+        "Run the suite twice in parallel. It must pass both times."],
+      ["🤖 A model you can script", "Agent tests",
+        "<code>scriptedModel([callTools(…), say('…')])</code> (pseudocode)",
+        "A script that silently returns nothing when it runs out.",
+        "Delete one step from a script. The test must fail loudly."],
+      ["🙈 Redacting logger", "Logging",
+        "<code>log.info('tool call', redact({ headers, args }))</code> (pseudocode)",
+        "Logging whole request objects, Authorization header included.",
+        "Send a request with a fake token, then search the logs: it must not appear."],
+      ["🧵 Request IDs", "Tracing",
+        "<code>const id = req.headers['x-request-id'] ?? randomUUID()</code> then add it to every log line",
+        "Trusting the header blindly. Check its length and characters first.",
+        "<code>curl -i -H \"x-request-id: demo-1\" http://localhost:3000/healthz</code> echoes the ID."],
+      ["🩺 Health check", "Dockerfile",
+        "<code>HEALTHCHECK CMD node -e \"fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1))\"</code>",
+        "A health route that needs auth or calls the upstream store, so it flaps.",
+        "<code>docker compose up --wait</code> turns healthy, then stops when you break the route."],
+      ["🚦 The CI gate", "CI config",
+        "<code>jobs: test → docker (needs: test)</code>: install from the lockfile, typecheck, test, build",
+        "Skipping the frozen lockfile, so CI tests different versions than you did.",
+        "Open a pull request with a type error. CI must turn red before any image builds."],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, sub, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="file">${sub}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${watch}</p>
+          <div class="lbl">Verify</div><p>${verify}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(12);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Capstone · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Brief ---------- */
+    .scenario { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .scenario { grid-template-columns: 1fr; } }
+    .scenario h3 { margin: 0 0 6px; font-size: 22px; }
+    .scenario .quote { background: var(--accent-soft); color: var(--text); border-left: 4px solid var(--accent); padding: 12px 14px; border-radius: 10px; margin: 12px 0 0; font-weight: 600; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .stat { background: var(--surface-2); border-radius: 12px; padding: 14px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+    .stat b { display: block; font-size: 28px; letter-spacing: -0.02em; }
+    .stat span { font-size: 13px; color: var(--muted); }
+    .stat.hot b { color: var(--accent); }
+    .illus { text-align: center; font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+    .people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    @media (max-width: 700px) { .people { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .person { font: inherit; color: var(--text); text-align: left; cursor: pointer; min-height: 96px;
+      background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+      display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, background .2s; }
+    .person .who { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+    .person .who span { font-size: 24px; }
+    .person .want { font-size: 14px; color: var(--muted); }
+    .person .tap { font-size: 12px; color: var(--accent); font-weight: 700; margin-top: auto; }
+    .person.open { border-color: var(--accent); background: var(--accent-soft); }
+    .person.open .want { color: var(--text); }
+    .start-row { text-align: center; margin-top: 24px; }
+    .start-row a { display: inline-block; text-decoration: none; min-height: 44px; }
+
+    /* ---------- Build simulation ---------- */
+    .rail { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 2px; margin-bottom: 20px; position: relative; }
+    .rail::before { content: ""; position: absolute; left: 3%; right: 3%; top: 22px; height: 3px; background: var(--line); border-radius: 3px; }
+    .rail-step { font: inherit; background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; min-height: 44px; min-width: 0; }
+    .rail-step:disabled { cursor: default; }
+    .rail-step .dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 19px;
+      background: var(--surface); border: 3px solid var(--line); transition: border-color .2s, background .2s; }
+    .rail-step .lbl { font-size: 11px; font-weight: 700; text-align: center; line-height: 1.2; }
+    .rail-step.done .dot { border-color: var(--good); background: var(--good-soft); }
+    .rail-step.done.meh .dot { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 18%, var(--surface)); }
+    .rail-step.done.miss .dot { border-color: var(--bad); background: var(--bad-soft); }
+    .rail-step.current .dot { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent); }
+    .rail-step.current .lbl { color: var(--accent); }
+    .rail-step:disabled .dot { opacity: .45; }
+    @media (max-width: 760px) { .rail-step .lbl { display: none; } .rail-step .dot { width: 36px; height: 36px; font-size: 16px; } .rail::before { top: 18px; } .rail-step { min-height: 44px; justify-content: center; } }
+
+    .proj { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 700px) { .proj { grid-template-columns: 1fr; } }
+    .stage-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .stage-num { font-size: 12px; font-weight: 800; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; }
+    .wk { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface-2); padding: 4px 10px; border-radius: 999px; }
+    .ch-ref { font-size: 13px; font-weight: 700; text-decoration: none; background: var(--surface-2); color: var(--text);
+      padding: 6px 12px; border-radius: 999px; min-height: 44px; display: inline-flex; align-items: center; }
+    .stage-title { margin: 8px 0 10px; font-size: 24px; }
+    .situation { background: var(--surface-2); border-radius: 12px; padding: 12px 14px 12px 32px; margin: 0 0 14px; }
+    .situation li { margin: 3px 0; }
+    .q { font-weight: 800; font-size: 17px; margin: 0 0 10px; }
+    .opts { display: flex; flex-direction: column; gap: 8px; }
+    .opt { font: inherit; text-align: left; cursor: pointer; color: var(--text); min-height: 48px;
+      background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px;
+      display: flex; gap: 10px; align-items: flex-start; transition: border-color .2s, background .2s; }
+    .opt:not(:disabled):hover { border-color: var(--accent); }
+    .opt .k { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+    .opt span:last-child { min-width: 0; overflow-wrap: anywhere; }
+    .opt:disabled { cursor: default; }
+    .opt.best { border-color: var(--good); background: var(--good-soft); }
+    .opt.pick-meh { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, var(--surface)); }
+    .opt.pick-bad { border-color: var(--bad); background: var(--bad-soft); }
+    .opt.faded { opacity: .55; }
+    .fb { margin-top: 14px; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); animation: pop .35s ease; }
+    .fb h4 { margin: 0 0 6px; }
+    .fb .why { margin: 0 0 10px; overflow-wrap: anywhere; }
+    .fb-actions { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .fb-actions .btn { min-height: 44px; }
+    @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
+    code { overflow-wrap: anywhere; }
+
+    .board { position: sticky; top: 72px; }
+    @media (max-width: 700px) { .board { position: static; } }
+    .board h3 { margin: 0 0 4px; font-size: 18px; }
+    .health-lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .health-lbl b { color: var(--text); }
+    .meter { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 6px 0 14px; }
+    .meter i { display: block; height: 100%; transition: width .5s, background .5s; }
+    .artifacts { display: flex; flex-direction: column; gap: 8px; max-height: 560px; overflow-y: auto; }
+    @media (max-width: 700px) { .artifacts { max-height: none; } }
+    .art { border: 1px solid var(--line); border-left: 4px solid var(--good); border-radius: 10px; padding: 10px 12px; background: var(--surface); animation: pop .35s ease; min-width: 0; }
+    .art.meh { border-left-color: var(--warn); }
+    .art.miss { border-left-color: var(--bad); }
+    .art .t { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); display: flex; justify-content: space-between; gap: 6px; }
+    .art .c { font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+    .art pre { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: 11.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .empty-board { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    /* ---------- Report card ---------- */
+    .locked-report { border: 2px dashed var(--line); border-radius: var(--radius); padding: 32px 16px; text-align: center; color: var(--muted); }
+    .locked-report b { display: block; font-size: 40px; }
+    .report-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    @media (max-width: 700px) { .report-top { grid-template-columns: 1fr; } }
+    .big { text-align: center; padding: 18px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+    .big b { display: block; font-size: 26px; letter-spacing: -0.02em; }
+    .big span { font-size: 13px; color: var(--muted); }
+    .big.good b { color: var(--good); }
+    .big.bad b { color: var(--bad); }
+    .decisions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .decisions .dec { flex: 0 1 calc((100% - 30px) / 4); min-width: 0; }
+    @media (max-width: 1000px) { .decisions .dec { flex-basis: calc((100% - 20px) / 3); } }
+    @media (max-width: 700px) { .decisions .dec { flex-basis: calc((100% - 10px) / 2); } }
+    .dec { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+    .dec .ico { font-size: 20px; flex: none; }
+    .dec .n { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--muted); }
+    .dec .t { font-weight: 700; font-size: 14px; }
+    .checklist { margin-top: 18px; }
+    .checklist h3 { margin: 0 0 4px; font-size: 18px; }
+    .checklist .sub2 { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .todo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    @media (max-width: 700px) { .todo { grid-template-columns: 1fr; } }
+    .todo-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); min-width: 0; }
+    .todo-item .box { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--accent); margin-top: 2px; }
+    .todo-item .what { font-size: 14px; min-width: 0; }
+    .todo-item .path { display: block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+    .todo-item.flag { outline: 2px solid var(--warn); outline-offset: -2px; }
+    .todo-item .why { display: block; font-size: 12px; color: var(--warn); font-weight: 700; margin-top: 2px; }
+    .report-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+    .report-actions .btn { min-height: 44px; text-decoration: none; }
+
+    /* ---------- Cheat sheet ---------- */
+    .sheet { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .tile { flex: 0 1 calc((100% - 24px) / 3); min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    @media (max-width: 1000px) { .tile { flex-basis: calc((100% - 12px) / 2); } }
+    @media (max-width: 560px) { .tile { flex-basis: 100%; } }
+    .tile .h { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+    .tile .h span { font-size: 20px; }
+    .tile .h small { color: var(--accent); font-size: 11px; letter-spacing: .08em; margin-left: auto; white-space: nowrap; }
+    .terms { display: flex; flex-wrap: wrap; gap: 4px; }
+    .terms i { font-style: normal; font-size: 12px; font-weight: 600; background: var(--surface-2); padding: 2px 8px; border-radius: 999px; }
+    .tile .where { font-size: 13px; color: var(--text); line-height: 1.45; }
+    .tile .run { font-size: 13px; background: var(--accent-soft); border-radius: 10px; padding: 8px 10px; margin-top: auto; overflow-wrap: anywhere; }
+    .tile .run code { font-size: 12px; }
+    .sheet-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+    .sheet-actions .btn { min-height: 44px; }
+    .copied { color: var(--good); font-weight: 700; }
+
+    @media print {
+      .topbar, .footer, #app > section:not(#lens), .sheet-actions, .step-label { display: none !important; }
+      body { background: #fff; color: #000; }
+      .tile { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 13 Capstone</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 13 · Capstone</div>
+      <h1>Ship a new tool.<br>End to end.</h1>
+      <p>One feature, thirteen decisions, every chapter in play.</p>
+      <nav class="stepper">
+        <a href="#brief">🧭 Brief</a>
+        <a href="#project">🛠️ Build</a>
+        <a href="#report">📊 Report</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= BRIEF ================= -->
+    <section class="section" id="brief">
+      <span class="step-label">🧭 Explore</span>
+      <h2>The feature request</h2>
+      <p class="sub">Lumen &amp; Leaf's store server has no coupon support yet. Tap each person to hear what they need.</p>
+
+      <div class="scenario">
+        <div class="card">
+          <h3>🎟️ Add <code>create_coupon</code></h3>
+          <ul class="bullets">
+            <li>Let the shop assistant create store coupons for promotions</li>
+            <li>It flows through the whole stack: store server → MCP client → agent loop</li>
+            <li>It writes to the store, so approval, scopes and retries all matter</li>
+            <li>You're the engineer: design it, wire it, test it, ship it</li>
+          </ul>
+          <div class="quote">💬 Store owner: "Make me a 15% weekend coupon, and don't let it go live by accident."</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><b>10</b><span>tools on the store server today</span></div>
+          <div class="stat hot"><b>+1</b><span>new write tool to add</span></div>
+          <div class="stat"><b>3</b><span>test layers to keep green</span></div>
+          <div class="stat hot"><b>0</b><span>duplicate coupons allowed</span></div>
+        </div>
+      </div>
+      <p class="illus">Lumen &amp; Leaf is a fictional store. The numbers are part of the practice scenario.</p>
+
+      <div class="people" id="people"></div>
+
+      <div class="start-row"><a class="btn primary" href="#project">Start building ↓</a></div>
+    </section>
+
+    <!-- ================= BUILD ================= -->
+    <section class="section" id="project">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Thirteen decisions, idea to release</h2>
+      <p class="sub">Choose what you'd do. Each choice adds to your implementation board.</p>
+
+      <div class="rail" id="rail"></div>
+      <div class="proj">
+        <div class="card" id="stage"></div>
+        <aside class="card board">
+          <h3>📋 Implementation board</h3>
+          <div class="health-lbl"><span>Design health</span><b id="health-val">–</b></div>
+          <div class="meter"><i id="health-bar" style="width:0%"></i></div>
+          <div class="artifacts" id="artifacts"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= REPORT ================= -->
+    <section class="section" id="report">
+      <span class="step-label">📊 Report</span>
+      <h2>Release report card</h2>
+      <p class="sub">How your design held up in review and in production, plus a checklist to build it for real.</p>
+      <div id="report-body"></div>
+    </section>
+
+    <!-- ================= CHEAT SHEET ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>Your MCP cheat sheet</h2>
+      <p class="sub">The whole journey on one page: key terms, how to build each piece, and how to verify it.</p>
+      <div class="sheet" id="sheet"></div>
+      <div class="sheet-actions">
+        <button class="btn" id="copy-sheet">📋 Copy as text</button>
+        <button class="btn" id="print-sheet">🖨️ Print / save PDF</button>
+        <span class="copied" id="copied"></span>
+      </div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>A new capability is mostly <b>design</b>: the right primitive, a precise schema, stable errors.</li>
+          <li>Writes need <b>defense in depth</b>: scopes on the server, approval in the host, idempotency on retries.</li>
+          <li>Ship it with <b>unit, integration and end-to-end tests</b> before it reaches a real store.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const PEOPLE = [
+      ["🏪", "Store owner", "Fast promotions from a chat. Never a coupon created without saying yes."],
+      ["📣", "Marketing", "Percent and fixed discounts, an expiry date, and a usage limit per coupon."],
+      ["🔐", "Security reviewer", "Least privilege. The read-only agent must never create coupons."],
+      ["🎧", "Support lead", "Clear errors when a code already exists, so the agent can explain it."],
+      ["🤖", "The agent (LLM)", "A precise name, description and schema, or it will guess the arguments."],
+      ["🛠️", "On-call engineer", "Retries must never create a second coupon. Tests before it ships."],
+    ];
+    const peopleEl = document.getElementById("people");
+    peopleEl.innerHTML = PEOPLE.map(([e, who, want], i) => `
+      <button class="person" data-p="${i}">
+        <span class="who"><span>${e}</span>${who}</span>
+        <span class="want" hidden>${want}</span>
+        <span class="tap">Tap to hear them</span>
+      </button>`).join("");
+    peopleEl.onclick = e => {
+      const p = e.target.closest(".person");
+      if (!p) return;
+      const open = p.classList.toggle("open");
+      p.querySelector(".want").hidden = !open;
+      p.querySelector(".tap").textContent = open ? "Tap to hide" : "Tap to hear them";
+    };
+
+    // Option quality: 2 = best, 1 = partly right, 0 = wrong move
+    const STAGES = [
+      { ch: 0, step: "Design", emoji: "🧭", short: "Primitive", title: "Pick the primitive",
+        situation: ["Creating a coupon changes store data", "The model should decide when it's needed, from the conversation"],
+        question: "Which MCP primitive is it?",
+        opts: [
+          ["A resource at shop://coupons/new", 0, "Resources are read-only context the app chooses. They don't perform actions."],
+          ["A prompt that tells the model how to call the store's admin API", 0, "Prompts are user-picked templates. The model never gets store credentials, by design."],
+          ["A tool, create_coupon: a model-controlled action, gated by the host", 2, "Actions with side effects are tools. The model proposes; the host approves."],
+          ["A tool, plus a coupons resource template in the same change", 1, "The tool is right. The extra resource is scope creep for v1; add it when someone needs to read coupons."],
+        ],
+        art: ["🧭 Primitive", "<b>Tool</b> · <code>create_coupon</code> · model-controlled, host-approved"] },
+      { ch: 1, step: "Design", emoji: "🔌", short: "Wiring", title: "Wire it into the server",
+        situation: ["The store server speaks Streamable HTTP at https://store.example.com/mcp, revision 2026-07-28", "Its tool list only changes when a new version is deployed"],
+        question: "What changes in transport and lifecycle?",
+        opts: [
+          ["Add a new endpoint, /mcp/coupons, for the new tool", 0, "One MCP endpoint serves every primitive. A second endpoint is a second server to secure."],
+          ["Nothing: register the tool with the existing server; clients see it in their next tools/list", 2, "Same endpoint, same protocol. In the stateless 2026-07-28 model every request stands alone, so the next discovery picks it up."],
+          ["Bump the protocol version so clients notice the new tool", 0, "Protocol versions describe the wire format, not your tool list."],
+          ["Advertise tools.listChanged: true and push a notification on deploy", 1, "Useful for a server whose tools change at runtime. This one only changes on deploy, so listChanged: false stays honest."],
+        ],
+        art: ["🔌 Wiring", "Register <code>create_coupon</code> on the existing server · same <code>/mcp</code> endpoint · picked up by the next <code>tools/list</code>"] },
+      { ch: 2, step: "Design", emoji: "📨", short: "Errors", title: "When the code already exists",
+        situation: ["Marketing asks for WEEKEND15, but a coupon with that code exists", "The agent should explain it and suggest another code"],
+        question: "How should the call fail?",
+        opts: [
+          ["A JSON-RPC error, -32603 internal error", 0, "Protocol errors mean the request itself failed. Clients may not pass them to the model, and it rarely recovers from them."],
+          ["A tool result with isError: true and a stable code like CONFLICT", 2, "Tool execution errors go back to the model as a result, so it can recover. A stable code (your own convention, not a spec code) lets clients react reliably."],
+          ["A success result whose text says \"failed\"", 0, "Callers check isError and the code. A success that means failure breaks every client."],
+          ["A -32602 invalid params error", 1, "Closer, but -32602 is for unknown tools and malformed requests, and this input is valid. It's a business conflict, so it belongs in a tool result."],
+        ],
+        art: ["📨 Error contract", "Duplicate code → <code>isError: true</code> · code <b>CONFLICT</b> · message the agent can repeat to the user"] },
+      { ch: 3, step: "Design", emoji: "🛠️", short: "Schema", title: "Write the tool definition",
+        situation: ["The model only sees name, title, description and schemas", "The store supports percent and fixed-amount discounts"],
+        question: "Which definition do you ship?",
+        opts: [
+          ["manage_coupons with an action field (create, update, delete) and free-form args", 0, "One tool mixing safe and destructive actions can't get honest annotations or a clear approval rule."],
+          ["create_coupon with a strict schema: code pattern, discountType enum, amount limits, optional expiry and usage limit, idempotencyKey; an outputSchema; and readOnlyHint: false, destructiveHint: false", 2, "Precise inputs stop the model guessing. The output schema gives clients structured results, and the annotations match what it does."],
+          ["create_coupon with every field as a free-text string", 1, "Right name, but loose types push validation onto store errors the model can't fix."],
+          ["coupon with no description, so the name speaks for itself", 0, "The description is the model's manual. Without it, the model guesses."],
+        ],
+        art: ["🛠️ Tool definition", `<pre>{
+  "name": "create_coupon",
+  "title": "Create coupon",
+  "inputSchema": {
+    "code": "^[A-Z0-9_-]{3,32}$",
+    "discountType": "percent | fixed_amount",
+    "amount": "number > 0",
+    "expiresAt": "ISO date, optional",
+    "usageLimit": "int, optional",
+    "idempotencyKey": "optional"
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "openWorldHint": true
+  }
+}</pre>`] },
+      { ch: 4, step: "Design", emoji: "📚", short: "Resources", title: "Resource side effects",
+        situation: ["update_stock notifies subscribers of shop://products/{productId} when it changes a product", "No resource lists coupons today"],
+        question: "Which resources must notify after a coupon is created?",
+        opts: [
+          ["shop://store/settings, because the store changed", 0, "Nothing in store settings changed. A false update makes subscribers re-read for nothing."],
+          ["None yet: no resource exposes coupons. Notify only when you add a coupon resource.", 2, "Notify exactly what changed. Add shop://coupons/{couponId} later, with its own update notification."],
+          ["Every product, since coupons affect prices", 0, "Coupons apply at checkout, not to product records. Flooding subscribers hides the real updates."],
+          ["Add a coupons resource now and notify it", 1, "Defensible, but it's extra surface for v1. Ship the tool first."],
+        ],
+        art: ["📚 Resources", "No coupon resource in v1 → <b>no update notifications</b><br><small>Later: <code>shop://coupons/{couponId}</code> + <code>notifications/resources/updated</code></small>"] },
+      { ch: 5, step: "Design", emoji: "💬", short: "Prompt", title: "A prompt for promotions?",
+        situation: ["Marketing would like a \"plan a promotion\" shortcut", "The store's prompts embed real store data and forbid invented policies"],
+        question: "What do you do in this change?",
+        opts: [
+          ["Put the coupon rules in a prompt instead of validating on the server", 0, "Prompts guide the model; they don't enforce anything. Rules belong in the schema and handler."],
+          ["Leave prompts for later; the tool must be safe without one", 2, "The tool stands on its own. A promotion prompt grounded in sales data can come next."],
+          ["Add a plan_promotion prompt that embeds last month's sales summary", 1, "A good follow-up, and grounded the right way, but it widens this change."],
+          ["Add a prompt that lists every customer's email for targeting", 0, "That leaks personal data into context. Keep personal data out of what the model sees."],
+        ],
+        art: ["💬 Prompts", "None in v1 · next: <code>plan_promotion</code> grounded in real sales data"] },
+      { ch: 6, step: "Build", emoji: "⏳", short: "Retries", title: "The network blinks",
+        situation: ["The call reached the store, but the response was lost", "The client retries create_coupon"],
+        question: "How do you make the retry safe?",
+        opts: [
+          ["Retry blindly: worst case, two coupons", 0, "Two live discount codes is a real loss. Retries must be safe for writes."],
+          ["Accept an idempotencyKey and store each result keyed by client, tool and key", 2, "Same key and same args return the stored result. Different args with the same key are rejected. A general pattern, not part of MCP itself."],
+          ["Rely on the store rejecting the duplicate code", 1, "No second coupon, but the retry now reports CONFLICT for a call that actually succeeded."],
+          ["Send progress notifications while it runs", 0, "Progress is for long work. It doesn't make a retry safe."],
+        ],
+        art: ["⏳ Retries", "<code>idempotencyKey</code> → stored result keyed by <code>client + create_coupon + key</code>"] },
+      { ch: 7, step: "Build", emoji: "🧩", short: "Client", title: "How the client sees it",
+        situation: ["The shop assistant discovers tools from every connected server", "With several servers, it prefixes tool names with the server name"],
+        question: "What do you change in the client?",
+        opts: [
+          ["Hard-code create_coupon in the client's tool list", 0, "Discovery exists so the client never hard-codes tools. A hard-coded list drifts from the server."],
+          ["Nothing: discovery lists it; with several servers it becomes store__create_coupon", 2, "Discovery and namespacing come for free, as long as the separator keeps names valid for the LLM."],
+          ["Add a special client command just for coupons", 1, "Handy for manual testing, but a generic tools/call already works."],
+          ["Give the tool a unique global name like store_create_coupon_v1", 0, "Collisions are the client's job. Server-side prefixes leak versions into the model's view."],
+        ],
+        art: ["🧩 Client", "No client code · visible in MCP Inspector · multi-server name <code>&lt;server&gt;__create_coupon</code>"] },
+      { ch: 8, step: "Build", emoji: "🤖", short: "Agent", title: "Teach the agent",
+        situation: ["The agent loop turns discovered tools into LLM function calls", "In testing, the model sends amount: \"15%\""],
+        question: "How do you fix it?",
+        opts: [
+          ["Rewrite the agent loop to special-case coupons", 0, "The loop is generic for a reason. Special cases rot."],
+          ["Sharpen the description and schema (amount is a number; percent goes in discountType) and add a scripted-model test", 2, "The model only sees the description and schema. Fix the contract, then lock it with a deterministic test."],
+          ["Add a line to the system prompt: \"amount is a number\"", 1, "It may help, but the schema is the contract every model sees."],
+          ["Parse \"15%\" on the server and accept anything", 0, "Silent coercion hides model mistakes and makes errors unpredictable."],
+        ],
+        art: ["🤖 Agent", "Description: <i>\"amount is a number; use discountType for percent\"</i> · e2e case with a <b>scripted model</b>"] },
+      { ch: 9, step: "Safety", emoji: "✋", short: "Approval", title: "Who approves the write?",
+        situation: ["Reads run automatically; writes ask; destructive actions need the tool name typed", "Server annotations are hints: they can raise a level, never lower it"],
+        question: "What approval rule do you add?",
+        opts: [
+          ["'auto': it's just a coupon", 0, "A coupon gives away money. Writes are never automatic in a careful host."],
+          ["Leave it out of the rules; the default handles it", 1, "If unknown tools default to 'confirm', it's safe, but the intent isn't written down."],
+          ["An explicit host rule: 'confirm', and 'explicit' above a discount limit you choose", 2, "Explicit, reviewed policy in the host, with friction that grows with the risk."],
+          ["Trust the server's annotations to decide", 0, "Annotations from a server are untrusted hints. The host owns the decision."],
+        ],
+        art: ["✋ Approval", "<code>create_coupon: (args) =&gt; bigDiscount(args) ? 'explicit' : 'confirm'</code><br><small>host approval policy · you set the limit</small>"] },
+      { ch: 10, step: "Safety", emoji: "🔐", short: "Scope", title: "Which scope guards it?",
+        situation: ["The store server checks a scope before each tool runs", "The read-only token has only read scopes"],
+        question: "How do you authorize it?",
+        opts: [
+          ["Reuse orders:write, since coupons affect orders", 0, "An order-writing agent would silently gain discount powers. One scope per capability."],
+          ["No scope: human approval is enough", 0, "Approval is the host's control. The server must still enforce who may call it."],
+          ["Add a coupons:write scope, check it before create_coupon runs, and grant it only to agents that need it", 2, "Least privilege. A token without the scope gets FORBIDDEN before anything runs."],
+          ["Use products:write, the closest existing scope", 1, "Better than none, but it ties coupons to product editing. A dedicated scope is clearer."],
+        ],
+        art: ["🔐 Scope", "<b>coupons:write</b> · checked before the handler runs · read-only token → FORBIDDEN"] },
+      { ch: 11, step: "Safety", emoji: "🛡️", short: "Security", title: "Untrusted input and personal data",
+        situation: ["Coupon fields come from model output, which may come from customer messages", "Coupons could be restricted to specific customer emails"],
+        question: "What do you do?",
+        opts: [
+          ["Accept any code and description; it's an internal tool", 0, "Text from a chat can carry injected instructions. Store it and you replay them to the next model."],
+          ["Strict code pattern and length limits; no email restrictions in v1; mask any email you do return", 2, "Validation limits what injected text can do, and personal data stays out of results."],
+          ["Let the model pass email restrictions and echo them back in full", 0, "That returns customer emails to the model. Mask or omit personal data in results."],
+          ["Validate on the client only", 1, "Helps one client, but any other MCP client could still send anything. Validate on the server."],
+        ],
+        art: ["🛡️ Security", "Code <code>^[A-Z0-9_-]{3,32}$</code> · bounded amount · no email restrictions in v1 · emails masked if returned"] },
+      { ch: 12, step: "Ship", emoji: "🧪", short: "Ship", title: "Test and ship",
+        situation: ["CI runs type-check, tests and build, then a smoke test of the running server", "The test store double has no coupons endpoint yet"],
+        question: "What's your test plan?",
+        opts: [
+          ["Try it once against the production store", 0, "Real coupons, real money, no repeatable test. Use a test double of the store."],
+          ["Unit tests for the handler only", 1, "A start, but it misses scopes, the HTTP path and approval."],
+          ["Add coupons to the test store double; unit tests for the handler; integration tests for scope, conflict and idempotency; an e2e case for approve and decline; then type-check, test, build", 2, "Unit, integration and end-to-end, with every failure path tested deterministically."],
+          ["Ship now and add tests after the first bug", 0, "The first bug would be a duplicate coupon in a real store."],
+        ],
+        art: null },
+    ];
+    const MAX = STAGES.length * 2;
+    const KEY = "mcp-capstone";
+    let state = load();
+    function load() {
+      try {
+        const s = JSON.parse(localStorage.getItem(KEY));
+        if (s && Array.isArray(s.answers) && s.answers.length === STAGES.length) return s;
+      } catch {}
+      return { answers: STAGES.map(() => null), current: 0 };
+    }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }
+
+    const quality = i => state.answers[i] === null ? null : STAGES[i].opts[state.answers[i]][1];
+    const points = () => state.answers.reduce((s, a, i) => s + (a === null ? 0 : quality(i)), 0);
+    const answered = () => state.answers.filter(a => a !== null).length;
+    const health = () => answered() ? Math.round(points() / (answered() * 2) * 100) : null;
+    const allDone = () => answered() === STAGES.length;
+    const cls = q => q === 2 ? "" : q === 1 ? "meh" : "miss";
+    const chLink = n => `<a class="ch-ref" href="${chapterUrl(CHAPTERS[n])}">📘 Ch ${String(n).padStart(2, "0")} · ${CHAPTERS[n].title}</a>`;
+
+    const SAFETY = [6, 9, 10, 11];
+    function outcome() {
+      const rounds = 1 + state.answers.filter((a, i) => quality(i) !== 2).length;
+      const incident = SAFETY.find(i => quality(i) === 0);
+      return { rounds, incident };
+    }
+
+    function renderRail() {
+      const firstOpen = state.answers.findIndex(a => a === null);
+      const reach = firstOpen === -1 ? STAGES.length - 1 : firstOpen;
+      document.getElementById("rail").innerHTML = STAGES.map((s, i) => {
+        const q = quality(i);
+        const c = [q !== null ? "done " + cls(q) : "", i === state.current ? "current" : ""].join(" ");
+        return `<button class="rail-step ${c}" data-go="${i}" ${i > reach ? "disabled" : ""} aria-label="Stage ${i + 1}: ${s.title}">
+          <span class="dot">${q === 2 ? "✓" : s.emoji}</span><span class="lbl">${s.short}</span></button>`;
+      }).join("");
+    }
+
+    function renderStage() {
+      const i = state.current, s = STAGES[i], a = state.answers[i];
+      const bestIdx = s.opts.findIndex(o => o[1] === 2);
+      const optHtml = s.opts.map((o, j) => {
+        let c = "";
+        if (a !== null) c = j === bestIdx ? "best" : j === a ? (o[1] === 1 ? "pick-meh" : "pick-bad") : "faded";
+        return `<button class="opt ${c}" data-opt="${j}" ${a !== null ? "disabled" : ""}>
+          <span class="k">${"ABCD"[j]}</span><span>${o[0]}</span></button>`;
+      }).join("");
+      let fb = "";
+      if (a !== null) {
+        const q = s.opts[a][1];
+        const head = q === 2 ? "✅ Great call" : q === 1 ? "🟡 Partly right" : "❌ Risky move";
+        const last = i === STAGES.length - 1;
+        fb = `<div class="fb">
+          <h4>${head}</h4>
+          <p class="why">${s.opts[a][2]}${q !== 2 ? `<br><b>Best:</b> ${s.opts[bestIdx][0]}. ${s.opts[bestIdx][2]}` : ""}</p>
+          <div class="fb-actions">${chLink(s.ch)}
+            <button class="btn primary" id="next-stage">${last ? "See report card ↓" : "Next stage →"}</button></div>
+        </div>`;
+      }
+      document.getElementById("stage").innerHTML = `
+        <div class="stage-head"><span class="stage-num">Stage ${i + 1} / ${STAGES.length}</span><span class="wk">${s.step}</span></div>
+        <h3 class="stage-title">${s.emoji} ${s.title}</h3>
+        <ul class="situation">${s.situation.map(x => `<li>${x}</li>`).join("")}</ul>
+        <p class="q">${s.question}</p>
+        <div class="opts">${optHtml}</div>${fb}`;
+    }
+
+    function shipArt() {
+      const q = quality(12);
+      return ["🧪 Tests", q === 2
+        ? "<ul><li>Mock store: POST coupons + duplicate code</li><li>Unit: coupon service rules</li><li>Integration: scope, CONFLICT, idempotency</li><li>E2E: approve + decline</li></ul>"
+        : q === 1 ? "Unit tests only · <b>scopes, HTTP and approval untested</b>" : "<b>No repeatable tests</b> · risky release"];
+    }
+
+    function renderBoard() {
+      const h = health();
+      document.getElementById("health-val").textContent = h === null ? "–" : h + "%";
+      const bar = document.getElementById("health-bar");
+      bar.style.width = (h || 0) + "%";
+      bar.style.background = h === null ? "var(--line)" : h >= 75 ? "var(--good)" : h >= 50 ? "var(--warn)" : "var(--bad)";
+      const items = STAGES.map((s, i) => {
+        const q = quality(i);
+        if (q === null) return "";
+        const [t, c] = s.art || shipArt();
+        const tag = q === 2 ? "✓ solid" : q === 1 ? "⚠ revised" : "✗ fixed in review";
+        return `<div class="art ${cls(q)}"><div class="t"><span>${t}</span><span>${tag}</span></div><div class="c">${c}</div></div>`;
+      }).filter(Boolean).reverse();
+      document.getElementById("artifacts").innerHTML = items.length ? items.join("")
+        : `<div class="empty-board">📭 Your design appears here as you decide: primitive, wiring, error contract, tool definition, retries, approval, scope, tests.</div>`;
+    }
+
+    const CHECKLIST = [
+      [3, "Define the input and output schemas", "Code pattern, discountType enum, amount limits, optional expiry, usage limit and idempotencyKey"],
+      [3, "Write a precise name, title and description", "Say what it does, the units, and when to use it; set readOnlyHint and destructiveHint honestly"],
+      [3, "Implement the handler with server-side validation", "Business rules live on the server: unique code, sane amounts, a valid expiry"],
+      [6, "Make retries safe with the idempotency key", "Store each result keyed by client, tool and key; reject the same key with different arguments"],
+      [2, "Map failures to tool errors with stable codes", "isError: true with CONFLICT for a duplicate code; protocol errors only for malformed requests"],
+      [4, "Emit resource updates only for what changed", "None in v1; add shop://coupons/{couponId} and its update notification later"],
+      [1, "Register the tool with the existing server", "Same /mcp endpoint; clients see it in their next tools/list"],
+      [10, "Add a coupons:write scope and check it first", "Grant it only to agents that need it; others get FORBIDDEN before anything runs"],
+      [9, "Add a host approval rule", "'confirm' by default, 'explicit' above a discount limit you choose"],
+      [12, "Unit tests for the handler", "Validation, business rules, error mapping"],
+      [12, "Integration tests through a real client", "Scope check, CONFLICT and idempotent replay against a test store double"],
+      [8, "End-to-end tests with a scripted model", "One approved and one declined coupon, plus a malformed amount"],
+      [12, "Update the docs and tool list", "Describe create_coupon, its scope and its approval level"],
+    ];
+
+    function renderReport() {
+      const el = document.getElementById("report-body");
+      if (!allDone()) {
+        el.innerHTML = `<div class="locked-report"><b>🔒</b>Finish all ${STAGES.length} stages to unlock your report card<br>
+          <span style="font-weight:700;color:var(--text)">${answered()} / ${STAGES.length} done</span></div>`;
+        return;
+      }
+      const o = outcome(), h = health();
+      const grade = h >= 90 ? "A" : h >= 75 ? "B" : h >= 55 ? "C" : "D";
+      el.innerHTML = `
+        <div class="report-top">
+          <div class="big ${o.rounds === 1 ? "good" : o.rounds > 4 ? "bad" : ""}"><b>${o.rounds === 1 ? "Approved" : o.rounds + " rounds"}</b><span>${o.rounds === 1 ? "code review, first time 🎉" : "code review before merge"}</span></div>
+          <div class="big ${o.incident === undefined ? "good" : "bad"}"><b>${o.incident === undefined ? "Clean launch" : "Incident"}</b><span>${o.incident === undefined ? "no safety gaps in production" : "gap at stage " + (o.incident + 1) + ": " + STAGES[o.incident].title}</span></div>
+          <div class="big"><b>${grade} · ${h}%</b><span>design health</span></div>
+        </div>
+        <div class="decisions">${STAGES.map((s, i) => {
+          const q = quality(i);
+          return `<div class="dec"><span class="ico">${q === 2 ? "✅" : q === 1 ? "🟡" : "❌"}</span>
+            <div><div class="n">STAGE ${i + 1} · CH ${String(s.ch).padStart(2, "0")}</div><div class="t">${s.title}</div></div></div>`;
+        }).join("")}</div>
+        <p class="illus">Outcome is illustrative: it scales with the quality of your decisions.</p>
+        <div class="card checklist">
+          <h3>✅ Build it for real</h3>
+          <p class="sub2">The steps any MCP server author would follow for a new write tool. Items flagged in amber map to stages you'd revisit.</p>
+          <div class="todo">${CHECKLIST.map(([ch, what, path]) => {
+            const weak = STAGES.some((s, i) => s.ch === ch && quality(i) !== 2);
+            return `<div class="todo-item ${weak ? "flag" : ""}"><span class="box"></span><span class="what">${what}<span class="path">${path}</span>${weak ? `<span class="why">Revisit Ch ${String(ch).padStart(2, "0")}</span>` : ""}</span></div>`;
+          }).join("")}</div>
+        </div>
+        <div class="report-actions">
+          <button class="btn" id="restart">↺ Restart</button>
+          <button class="btn" id="copy-check">📋 Copy checklist</button>
+          <a class="btn primary" href="#lens">Get the cheat sheet ↓</a>
+          <span class="copied" id="copied-check"></span>
+        </div>`;
+    }
+
+    function renderAll() { renderRail(); renderStage(); renderBoard(); renderReport(); }
+
+    async function copyText(text, flagEl) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); } catch {}
+        ta.remove();
+      }
+      flagEl.textContent = "✓ Copied";
+      setTimeout(() => flagEl.textContent = "", 2000);
+    }
+
+    document.getElementById("project").addEventListener("click", e => {
+      const go = e.target.closest("[data-go]"), opt = e.target.closest("[data-opt]");
+      if (go && !go.disabled) { state.current = +go.dataset.go; save(); renderAll(); return; }
+      if (opt && state.answers[state.current] === null) {
+        state.answers[state.current] = +opt.dataset.opt; save(); renderAll(); return;
+      }
+      if (e.target.closest("#next-stage")) {
+        if (state.current < STAGES.length - 1) {
+          state.current++; save(); renderAll();
+          document.getElementById("rail").scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          document.getElementById("report").scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    });
+    document.getElementById("report").addEventListener("click", e => {
+      if (e.target.closest("#copy-check")) {
+        const text = "CREATE_COUPON IMPLEMENTATION CHECKLIST\n\n" + CHECKLIST.map(([, what, path]) => `[ ] ${what}\n    ${path}`).join("\n")
+          + "\n\nThen: type-check, run all tests, build, and smoke-test the running server.";
+        copyText(text, document.getElementById("copied-check"));
+        return;
+      }
+      if (!e.target.closest("#restart")) return;
+      state = { answers: STAGES.map(() => null), current: 0 };
+      save(); renderAll();
+      document.getElementById("project").scrollIntoView({ behavior: "smooth" });
+    });
+    renderAll();
+
+    const SHEET = [
+      [0, ["Host", "Client", "Server", "Tools · Resources · Prompts"], "Pick the primitive by who controls it: model → tool, app → resource, user → prompt", "Connect MCP Inspector and see all three lists"],
+      [1, ["Streamable HTTP", "Stateless 2026-07-28", "server/discover", "Legacy path"], "One /mcp endpoint; protocol version and capabilities travel with every request", "Connect in Inspector with Protocol Era set to modern and read the supported versions in Connection Info"],
+      [2, ["Request", "Response", "Notification", "isError vs JSON-RPC error"], "Business failures as tool results with isError; protocol errors only for bad requests", "Send a bad argument in Inspector and check which kind of error comes back"],
+      [3, ["inputSchema", "outputSchema", "Annotations", "Clear descriptions"], "verb_noun names, strict schemas with enums and limits, honest annotations", "List tools in Inspector and read each schema as the model will"],
+      [4, ["URI templates", "Completion", "subscriptions/listen", "resources/updated"], "Expose read-only context as resources; notify exactly the URI that changed", "Read shop://products/101, change it, and watch for the update"],
+      [5, ["prompts/get", "Arguments", "Embedded resources", "Grounding rules"], "Embed the real record and state what the model must not invent", "Get a prompt in Inspector and check the returned messages"],
+      [6, ["Progress", "Cancellation", "Timeouts", "Idempotency keys"], "Report progress on long work; make write retries safe with a key", "Run a long call, cancel it, then retry a write with the same key"],
+      [7, ["Discovery", "Registry", "Namespacing", "Reconnects"], "Discover, don't hard-code; prefix tool names when servers collide", "Connect two servers and compare the tool names the model sees"],
+      [8, ["Tool adapter", "Agent loop", "Scripted model", "Function calls"], "Turn tools into function calls; feed results and errors back; cap the steps", "Replay a scripted conversation and assert each tool call"],
+      [9, ["auto · confirm · explicit", "Host decides", "Hints only raise", "Argument rules"], "The host owns approval; annotations can raise the level, never lower it", "Call a write and a destructive tool and check the prompts you get"],
+      [10, ["Bearer token", "Scopes", "FORBIDDEN", "Least privilege"], "Check the token, then the scope, before any handler runs", "Call a write with a read-only token and expect FORBIDDEN"],
+      [11, ["Prompt injection", "Tool poisoning", "Masked emails", "Rate limits"], "Treat tool output as untrusted; minimize personal data; rate-limit per client", "Plant an instruction in a product description and watch it get stopped"],
+      [12, ["Unit tests", "Integration", "E2E", "Smoke test"], "Test each layer deterministically against a store double", "Run type-check, tests and build in CI before every deploy"],
+    ];
+    document.getElementById("sheet").innerHTML = SHEET.map(([n, terms, build, verify]) => `
+      <div class="tile">
+        <div class="h"><span>${CHAPTERS[n].emoji}</span>${CHAPTERS[n].title}<small>CH ${String(n).padStart(2, "0")}</small></div>
+        <div class="terms">${terms.map(t => `<i>${t}</i>`).join("")}</div>
+        <div class="where">🛠️ <b>Build it:</b> ${build}</div>
+        <div class="run">✔ <b>Verify:</b> ${verify}</div>
+      </div>`).join("");
+
+    document.getElementById("copy-sheet").onclick = () => {
+      const text = "MCP BUILDER'S CHEAT SHEET\n\n" + SHEET.map(([n, terms, build, verify]) =>
+        `${String(n).padStart(2, "0")} ${CHAPTERS[n].title}\n  Terms: ${terms.join(", ")}\n  Build it: ${build}\n  Verify: ${verify}`).join("\n\n");
+      copyText(text, document.getElementById("copied"));
+    };
+    document.getElementById("print-sheet").onclick = () => window.print();
+
+    initChapter(13);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

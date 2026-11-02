@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Resources · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+    code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+    .lbl { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+    .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .three { grid-template-columns: 1fr; } }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    pre.json .k { color: var(--accent); }
+    pre.json .s { color: var(--good); }
+
+    /* ---------- Explore: resource picker ---------- */
+    .ask { text-align: center; margin: 0 auto 18px; max-width: 640px; }
+    .ask span { display: inline-block; background: var(--accent-soft); padding: 10px 16px; border-radius: 14px; font-weight: 700; }
+    .pick { display: flex; flex-direction: column; gap: 8px; }
+    .res {
+      font: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px;
+      min-height: 56px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--surface); color: var(--text); transition: border-color .2s, background .2s;
+    }
+    .res .ic { font-size: 20px; flex: none; }
+    .res .tx { flex: 1; min-width: 0; }
+    .res .tx b { display: block; font-size: 14px; }
+    .res .tx span { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+    .res .tick { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 13px; }
+    .res.on { border-color: var(--accent); background: var(--accent-soft); }
+    .res.on .tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ctx { display: flex; flex-direction: column; gap: 12px; }
+    .ctx-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+    .ctx-chips span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); }
+    .ctx-chips .empty { background: none; color: var(--muted); padding-left: 0; }
+    .answer { display: flex; flex-direction: column; gap: 8px; }
+    .fact { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+    .fact.ok { background: var(--good-soft); }
+    .fact.miss { background: var(--bad-soft); }
+    .size-meter { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .size-meter i { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+    .size-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .vs .card h3 { margin: 0 0 8px; font-size: 18px; }
+
+    /* ---------- Learn: anatomy ---------- */
+    .anat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .anat { grid-template-columns: 1fr; } }
+    .fields { display: flex; flex-direction: column; gap: 6px; }
+    .fld {
+      font: inherit; cursor: pointer; text-align: left; display: flex; gap: 10px; align-items: baseline;
+      min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid transparent;
+      background: var(--surface-2); color: var(--text);
+    }
+    .fld .fk { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; color: var(--accent); flex: none; min-width: 84px; }
+    .fld .fv { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
+    .fld.active { border-color: var(--accent); background: var(--accent-soft); }
+    .fld .opt { margin-left: auto; font-size: 11px; color: var(--muted); flex: none; }
+    .fdetail { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+    .fdetail h3 { margin: 0; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 20px; }
+    .call .card { display: flex; flex-direction: column; gap: 8px; }
+    .call .m { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-weight: 700; color: var(--accent); font-size: 14px; }
+
+    /* ---------- Templates ---------- */
+    .uris { display: flex; flex-direction: column; gap: 8px; }
+    .uri-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+    .uri-row .mono { overflow-wrap: anywhere; flex: 1; }
+    .tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); flex: none; }
+    .tag.priv { background: var(--bad-soft); color: var(--bad); }
+    .exp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .exp { grid-template-columns: 1fr; } }
+    .exp .card { display: flex; flex-direction: column; gap: 12px; }
+    .tpl { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 15px; text-align: center; padding: 12px; border-radius: 12px; background: var(--surface-2); overflow-wrap: anywhere; }
+    .tpl b { color: var(--accent); }
+    .idbox { display: flex; gap: 8px; align-items: center; }
+    .idbox label { font-weight: 700; font-size: 14px; flex: none; }
+    .idbox input { flex: 1; min-width: 0; font: inherit; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    .keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .keys .btn { min-height: 44px; padding: 8px 0; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .sugg { display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; align-content: flex-start; }
+    .sugg .chip { min-height: 40px; font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    .sugg .none { font-size: 13px; color: var(--muted); align-self: center; }
+    .result { padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+    .result.ok { background: var(--good-soft); }
+    .result.bad { background: var(--bad-soft); }
+    .result.idle { background: var(--surface-2); color: var(--muted); }
+
+    /* ---------- Live updates ---------- */
+    .seq-wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 900px) { .seq-wrap { grid-template-columns: 1fr; } }
+    .lanes { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .lane { text-align: center; padding: 10px 6px; border-radius: 12px; background: var(--surface-2); font-weight: 800; font-size: 14px; }
+    .lane small { display: block; font-weight: 600; color: var(--muted); font-size: 11px; }
+    .msgs { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .msg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; opacity: .25; transition: opacity .3s; }
+    .msg.shown { opacity: 1; }
+    .msg.now .bar { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+    .bar { padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; text-align: center; }
+    .bar.note { background: var(--good-soft); }
+    .bar.act { background: var(--surface-2); border: 1.5px dashed var(--line); }
+    .c1 { grid-column: 1 / 3; } .c2 { grid-column: 2 / 4; } .c12 { grid-column: 1 / 2; } .c22 { grid-column: 2 / 3; } .c3 { grid-column: 3 / 4; } .c13 { grid-column: 1 / 4; }
+    .seq-detail { display: flex; flex-direction: column; gap: 10px; }
+    .seq-detail h3 { margin: 0; font-size: 18px; }
+    .seq-ctrl { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 18px; }
+    .sdots { display: flex; gap: 6px; }
+    .sdots i { width: 22px; height: 6px; border-radius: 999px; background: var(--line); }
+    .sdots i.on { background: var(--accent); }
+    .stock { font-size: 28px; font-weight: 800; }
+
+    /* ---------- Try ---------- */
+    .tryq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 900px) { .tryq { grid-template-columns: 1fr; } }
+    .tryq .card { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+    .q-case { font-size: 18px; font-weight: 700; min-height: 84px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; }
+    .q-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .q-btns .btn { min-height: 48px; }
+    .fb { min-height: 48px; font-size: 14px; color: var(--muted); text-align: center; }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-foot { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .q-foot .btn { min-height: 44px; }
+    .build-ask { font-weight: 700; text-align: center; min-height: 52px; display: flex; align-items: center; justify-content: center; }
+    .bchips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .bchips .chip { min-height: 44px; font: inherit; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; cursor: pointer; padding: 8px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    #b-tpl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 460px; margin: 0 auto; }
+    .bchips .chip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .built { text-align: center; padding: 12px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px; min-height: 46px; overflow-wrap: anywhere; }
+    .run { margin-top: 16px; }
+    .run h3 { margin: 0 0 4px; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+    .step { display: flex; flex-direction: column; gap: 6px; }
+    .step .n { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+
+    /* ---------- Builder's Lens ---------- */
+    .flip-back code { font-size: 11.5px; padding: 0 4px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 04 Resources</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 04 · Resources</div>
+      <h1>Context the app<br>chooses.</h1>
+      <p>Read-only data a server exposes by URI, picked by the host, not by the model.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#learn">💡 Learn</a>
+        <a href="#templates">🧩 Templates</a>
+        <a href="#live">🔔 Live updates</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Attach context to a chat</h2>
+      <p class="sub">You're the shop assistant, the host app for Lumen &amp; Leaf, an example online store. Tap resources to attach them, then read the answer.</p>
+
+      <div class="ask"><span>💬 "Is the Ceramic Pour-Over Set in stock, and which currency do you charge in?"</span></div>
+
+      <div class="two">
+        <div class="card">
+          <div class="lbl">📎 Resource picker · host UI</div>
+          <div class="pick" id="pick"></div>
+        </div>
+        <div class="card ctx">
+          <div>
+            <div class="lbl">Context sent to the model</div>
+            <div class="ctx-chips" id="ctx-chips"></div>
+          </div>
+          <div>
+            <div class="size-row"><span>Context size</span><span id="size-lbl"></span></div>
+            <div class="size-meter"><i id="size-bar"></i></div>
+          </div>
+          <div class="answer" id="answer"></div>
+        </div>
+      </div>
+
+      <div class="two vs" style="margin-top:16px">
+        <div class="card">
+          <h3>📚 Resources: the app picks</h3>
+          <ul class="bullets">
+            <li>The host or the user decides what goes into context</li>
+            <li>Read-only data, addressed by a URI</li>
+            <li>Typical UI: a picker, a list, an "attach" button</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>🛠️ Tools: the model picks</h3>
+          <ul class="bullets">
+            <li>The model decides to call them mid-conversation</li>
+            <li>Can act and change things (with approval)</li>
+            <li>Covered in Chapter 03</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LEARN ================= -->
+    <section class="section" id="learn">
+      <span class="step-label">💡 Learn</span>
+      <h2>Anatomy of a resource</h2>
+      <p class="sub">The catalog snapshot from the Lumen &amp; Leaf store server. Tap a field.</p>
+
+      <div class="anat">
+        <div class="card">
+          <div class="lbl">resources/list → one entry</div>
+          <div class="fields" id="fields"></div>
+        </div>
+        <div class="card fdetail" id="fdetail"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Three calls you'll see</h2>
+      <p class="sub">Discover, then read. The two list calls support pagination with a cursor.</p>
+      <div class="three call">
+        <div class="card">
+          <div class="m">resources/list</div>
+          <ul class="bullets">
+            <li>Concrete resources the caller can read</li>
+            <li>Returns <code>uri</code>, <code>name</code>, <code>title</code>, <code>mimeType</code></li>
+            <li>May differ by the caller's scopes</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="m">resources/templates/list</div>
+          <ul class="bullets">
+            <li>Parameterized URIs (RFC 6570)</li>
+            <li>Returns <code>uriTemplate</code> instead of <code>uri</code></li>
+            <li>Arguments can be auto-completed</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="m">resources/read</div>
+          <ul class="bullets">
+            <li>Send a <code>uri</code>, get <code>contents</code></li>
+            <li>Each item has <code>text</code> or base64 <code>blob</code></li>
+            <li>Unknown URI → JSON-RPC error, never empty <code>contents</code></li>
+          </ul>
+        </div>
+      </div>
+      <p class="note" style="text-align:center;margin-top:12px">Per the 2026-07-28 spec, "not found" is <code>-32602</code>. Clients should also accept <code>-32002</code> from older versions.</p>
+    </section>
+
+    <!-- ================= TEMPLATES ================= -->
+    <section class="section" id="templates">
+      <span class="step-label">🧩 Templates</span>
+      <h2>Direct resources vs templates</h2>
+      <p class="sub">Every URI the example store server offers. Templates reach any product or order without listing them all.</p>
+
+      <div class="two">
+        <div class="card">
+          <div class="lbl">Direct · fixed URI</div>
+          <p class="note" style="margin:0 0 8px">Scheme: <code>shop://</code></p>
+          <div class="uris">
+            <div class="uri-row"><span class="mono">store/info</span><span class="tag">any client</span></div>
+            <div class="uri-row"><span class="mono">store/settings</span><span class="tag">any client</span></div>
+            <div class="uri-row"><span class="mono">catalog</span><span class="tag">products:read</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="lbl">Template · fill the variable</div>
+          <p class="note" style="margin:0 0 8px">Scheme: <code>shop://</code></p>
+          <div class="uris">
+            <div class="uri-row"><span class="mono">products/{productId}</span><span class="tag">listed</span></div>
+            <div class="uri-row"><span class="mono">orders/{orderId}</span><span class="tag priv">never listed</span></div>
+          </div>
+          <ul class="bullets" style="margin-top:10px">
+            <li>Products can be listed (say, the first 50) so hosts can browse</li>
+            <li>Orders aren't listed, so nobody can browse customer activity. In the TypeScript SDK that's <code>list: undefined</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">Expand a template, with completion</h2>
+      <p class="sub">Type an ID with the keypad. The server suggests matching IDs by prefix.</p>
+      <div class="seg" id="tpl-seg" style="margin-bottom:14px">
+        <button class="btn active" data-tpl="0">📦 products/{productId}</button>
+        <button class="btn" data-tpl="1">🧾 orders/{orderId}</button>
+      </div>
+      <div class="exp">
+        <div class="card">
+          <div class="tpl" id="tpl-view"></div>
+          <div class="idbox"><label for="tpl-input" id="tpl-label">productId</label><input id="tpl-input" inputmode="numeric" autocomplete="off" placeholder="type digits"></div>
+          <div class="keys" id="keys"></div>
+          <div>
+            <div class="lbl">Suggestions · completion/complete</div>
+            <div class="sugg" id="sugg"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="lbl">On the wire</div>
+          <pre class="json" id="wire"></pre>
+          <div class="result idle" id="tpl-result"></div>
+          <ul class="bullets">
+            <li>The host sends <code>ref/resource</code> with the template, plus the argument typed so far</li>
+            <li>The spec allows up to 100 values per response, with <code>total</code> and <code>hasMore</code></li>
+            <li>This example caps suggestions at 20 and gives up after 5 seconds (example limits)</li>
+            <li>Validate the argument: reject IDs that aren't digits</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LIVE ================= -->
+    <section class="section" id="live">
+      <span class="step-label">🔔 Live updates</span>
+      <h2>A tool changes stock. The client finds out.</h2>
+      <p class="sub">Step through how a subscribed client learns that product 101 changed.</p>
+
+      <div class="seq-wrap">
+        <div class="card">
+          <div class="lanes">
+            <div class="lane">🧩 Client<small>shop assistant</small></div>
+            <div class="lane">🖥️ Server<small>store server</small></div>
+            <div class="lane">🛒 Store<small>database</small></div>
+          </div>
+          <div class="msgs" id="msgs"></div>
+        </div>
+        <div class="card seq-detail" id="seq-detail"></div>
+      </div>
+      <div class="seq-ctrl">
+        <div class="sdots" id="sdots"></div>
+        <button class="btn primary" id="seq-next">▶ Step 1</button>
+      </div>
+
+      <div class="two" style="margin-top:24px">
+        <div class="card">
+          <div class="lbl">Example capability</div>
+          <pre class="json"><span class="k">"resources"</span>: { <span class="k">"subscribe"</span>: true, <span class="k">"listChanged"</span>: false }</pre>
+          <ul class="bullets" style="margin-top:10px">
+            <li><code>subscribe</code>: per-resource <code>notifications/resources/updated</code></li>
+            <li><code>listChanged</code>: <code>notifications/resources/list_changed</code> when the set of resources changes</li>
+            <li>This server's set is fixed, so it declares <code>listChanged: false</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl">Two protocol eras</div>
+          <ul class="bullets">
+            <li><b>2026-07-28:</b> one <code>subscriptions/listen</code> stream with <code>resourceSubscriptions</code></li>
+            <li><b>2025 era:</b> <code>resources/subscribe</code> and <code>resources/unsubscribe</code> per URI</li>
+            <li>A dual-era client checks the era and does either, so it works with both</li>
+            <li>The notification only says <i>what</i> changed. The client re-reads to get the new data</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Resource or tool?</h2>
+      <p class="sub">Left: decide which primitive fits. Right: assemble the URI the host should read.</p>
+
+      <div class="tryq">
+        <div class="card">
+          <div class="dots" id="rt-dots"></div>
+          <div class="q-case" id="rt-case"></div>
+          <div class="q-btns" id="rt-btns">
+            <button class="btn" data-rt="r">📚 Resource</button>
+            <button class="btn" data-rt="t">🛠️ Tool</button>
+          </div>
+          <div class="fb" id="rt-fb"></div>
+          <div class="q-foot"><button class="btn" id="rt-next">Next →</button></div>
+        </div>
+        <div class="card">
+          <div class="dots" id="b-dots"></div>
+          <div class="build-ask" id="b-ask"></div>
+          <div>
+            <div class="lbl" style="text-align:center">1 · Pick the URI pattern</div>
+            <div class="bchips" id="b-tpl"></div>
+          </div>
+          <div>
+            <div class="lbl" style="text-align:center">2 · Pick the value</div>
+            <div class="bchips" id="b-val"></div>
+          </div>
+          <div class="built" id="b-built"></div>
+          <div class="fb" id="b-fb"></div>
+          <div class="q-foot"><button class="btn primary" id="b-check">Check</button><button class="btn" id="b-next">Next →</button></div>
+        </div>
+      </div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="note">Use the official MCP Inspector (Node 22.19+) with <b>Everything</b>, the official reference server that ships resources, templates, prompts and tools.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1 · OPEN THE INSPECTOR</span><pre class="json">npx @modelcontextprotocol/inspector \
+  npx -y @modelcontextprotocol/server-everything</pre></div>
+          <div class="step"><span class="n">2 · LIST TEMPLATES (CLI)</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+  npx -y @modelcontextprotocol/server-everything \
+  --method resources/templates/list</pre></div>
+          <div class="step"><span class="n">3 · LIST, THEN READ ONE</span><pre class="json">… --method resources/list
+… --method resources/read --uri &lt;a uri from the list&gt;</pre></div>
+          <div class="step"><span class="n">4 · YOUR OWN SERVER</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+  https://store.example.com/mcp --transport http --protocol-era auto \
+  --method resources/list</pre></div>
+        </div>
+        <p class="note" style="margin-top:10px">Subscriptions need a connection that stays open: watch updates in the web Inspector, not in one-shot CLI runs. Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">modelcontextprotocol.io/docs/tools/inspector</a>.</p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>Resources are <b>read-only context</b> addressed by a <b>URI</b>. The <b>app</b> decides what to include.</li>
+          <li><b>Templates</b> plus <b>completion</b> reach any item without listing everything.</li>
+          <li><b>Subscriptions</b> keep context fresh: change → <code>resources/updated</code> → re-read.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    /* ---------- Explore ---------- */
+    const RES = [
+      { k: "info", ic: "🏪", t: "Store information", u: "shop://store/info", size: 1, gives: ["currency"] },
+      { k: "settings", ic: "⚙️", t: "Store settings", u: "shop://store/settings", size: 1, gives: ["currency"] },
+      { k: "catalog", ic: "📦", t: "Product catalog snapshot", u: "shop://catalog", size: 8, gives: ["stock"] },
+      { k: "p101", ic: "☕", t: "Product 101 · Ceramic Pour-Over Set", u: "shop://products/101", size: 1, gives: ["stock"] },
+    ];
+    const attached = new Set();
+    function renderExplore() {
+      $("pick").innerHTML = RES.map(r => `
+        <button class="res ${attached.has(r.k) ? "on" : ""}" data-res="${r.k}" aria-pressed="${attached.has(r.k)}">
+          <span class="ic">${r.ic}</span>
+          <span class="tx"><b>${r.t}</b><span>${r.u}</span></span>
+          <span class="tick">${attached.has(r.k) ? "✓" : ""}</span>
+        </button>`).join("");
+      const on = RES.filter(r => attached.has(r.k));
+      $("ctx-chips").innerHTML = on.length ? on.map(r => `<span>${r.ic} ${r.u.replace("shop://", "")}</span>`).join("") : `<span class="empty">Nothing attached yet</span>`;
+      const size = on.reduce((s, r) => s + r.size, 0);
+      $("size-bar").style.width = Math.min(100, size / 11 * 100) + "%";
+      $("size-lbl").textContent = size === 0 ? "empty" : size <= 2 ? "small" : size <= 4 ? "medium" : "large";
+      const gives = new Set(on.flatMap(r => r.gives));
+      const stockFrom = attached.has("p101") ? "product 101" : attached.has("catalog") ? "the catalog" : null;
+      const curFrom = attached.has("info") ? "store/info" : attached.has("settings") ? "store/settings" : null;
+      const lines = [
+        gives.has("stock")
+          ? `<div class="fact ok">✅ <span><b>Yes, 14 in stock</b> at €48.00. From ${stockFrom}.</span></div>`
+          : `<div class="fact miss">⚠️ <span><b>Stock unknown.</b> Not in context: the model must guess or call a tool.</span></div>`,
+        gives.has("currency")
+          ? `<div class="fact ok">✅ <span><b>Euro (EUR).</b> From ${curFrom}.</span></div>`
+          : `<div class="fact miss">⚠️ <span><b>Currency unknown.</b> Attach store info or settings.</span></div>`,
+      ];
+      let tip = "Attach what answers the question, nothing more.";
+      if (gives.has("stock") && gives.has("currency")) tip = attached.has("catalog") && !attached.has("p101")
+        ? "Answered, but the catalog snapshot carries up to 100 products. Product 101 alone is enough."
+        : on.length > 2 ? "Answered. Some attachments weren't needed: smaller context is cheaper and clearer." : "Answered with the smallest useful context. 👌";
+      $("answer").innerHTML = `<div class="lbl">Model's answer</div>${lines.join("")}<p class="note" style="margin:4px 0 0">${tip}</p>`;
+    }
+    $("pick").onclick = e => {
+      const b = e.target.closest("[data-res]");
+      if (!b) return;
+      attached.has(b.dataset.res) ? attached.delete(b.dataset.res) : attached.add(b.dataset.res);
+      renderExplore();
+    };
+    renderExplore();
+
+    /* ---------- Learn: anatomy ---------- */
+    const FIELDS = [
+      { k: "uri", v: "shop://catalog", opt: "required", what: "The unique address of the resource.", pts: ["Any RFC 3986 URI: <code>file://</code>, <code>https://</code> or a custom scheme like <code>shop://</code>", "Clients pass it back to <code>resources/read</code>"] },
+      { k: "name", v: "catalog", opt: "required", what: "A stable programmatic name.", pts: ["In the TypeScript SDK, the first argument to <code>registerResource</code>", "Not meant for display"] },
+      { k: "title", v: "Product catalog snapshot", opt: "optional", what: "A human-readable label for UIs.", pts: ["What a resource picker shows", "Falls back to <code>name</code> when missing"] },
+      { k: "description", v: "Compact list of up to 100…", opt: "optional", what: "Tells the host and model what's inside.", pts: ["This one points big catalogs to the <code>search_products</code> tool", "Good descriptions steer usage"] },
+      { k: "mimeType", v: "application/json", opt: "optional", what: "The format of the contents.", pts: ["Use one consistent type for JSON resources", "Helps clients render or parse"] },
+      { k: "contents[]", v: "{ uri, mimeType, text }", opt: "on read", what: "What <code>resources/read</code> returns.", pts: ["<code>text</code> for text, <code>blob</code> (base64) for binary", "This example sends pretty-printed JSON as <code>text</code>"] },
+    ];
+    let fActive = 0;
+    function renderFields() {
+      $("fields").innerHTML = FIELDS.map((f, i) => `
+        <button class="fld ${i === fActive ? "active" : ""}" data-f="${i}"><span class="fk">${f.k}</span><span class="fv">${esc(f.v)}</span><span class="opt">${f.opt}</span></button>`).join("");
+      const f = FIELDS[fActive];
+      $("fdetail").innerHTML = `<div class="lbl">${f.opt}</div><h3>${f.k}</h3><p style="margin:0;font-weight:600">${f.what}</p><ul class="bullets">${f.pts.map(p => `<li>${p}</li>`).join("")}</ul>`;
+    }
+    $("fields").onclick = e => { const b = e.target.closest("[data-f]"); if (b) { fActive = +b.dataset.f; renderFields(); } };
+    renderFields();
+
+    /* ---------- Templates ---------- */
+    const TPLS = [
+      { tpl: "shop://products/{productId}", arg: "productId", ids: Array.from({ length: 14 }, (_, i) => String(101 + i)), scope: "products:read" },
+      { tpl: "shop://orders/{orderId}", arg: "orderId", ids: Array.from({ length: 8 }, (_, i) => String(5001 + i)), scope: "orders:read" },
+    ];
+    let tIdx = 0;
+    const input = $("tpl-input");
+    $("keys").innerHTML = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫", "✕"].map(k => `<button class="btn" data-key="${k}">${k}</button>`).join("");
+    function renderTpl() {
+      const t = TPLS[tIdx];
+      document.querySelectorAll("#tpl-seg .btn").forEach(b => b.classList.toggle("active", +b.dataset.tpl === tIdx));
+      $("tpl-label").textContent = t.arg;
+      const val = input.value.replace(/\D/g, "").slice(0, 10);
+      if (input.value !== val) input.value = val;
+      $("tpl-view").innerHTML = t.tpl.replace(`{${t.arg}}`, `<b>${val ? esc(val) : "{" + t.arg + "}"}</b>`);
+      const sug = t.ids.filter(id => id.startsWith(val)).slice(0, 20);
+      $("sugg").innerHTML = sug.length && val !== sug[0] || sug.length > 1
+        ? sug.map(id => `<button class="chip" data-id="${id}">${id}</button>`).join("")
+        : `<span class="none">${val && t.ids.includes(val) ? "Exact match." : val ? "No matches." : ""}</span>`;
+      const shown = sug.length ? JSON.stringify(sug.slice(0, 4)).replace(/,/g, ", ") + (sug.length > 4 ? " …" : "") : "[]";
+      $("wire").innerHTML = `<span class="k">→ completion/complete</span>
+ref: { type: <span class="s">"ref/resource"</span>, uri: <span class="s">"${t.tpl}"</span> }
+argument: { name: <span class="s">"${t.arg}"</span>, value: <span class="s">"${esc(val)}"</span> }
+<span class="k">← completion</span>
+values: ${esc(shown)}`;
+      const r = $("tpl-result");
+      if (!val) { r.className = "result idle"; r.innerHTML = "Pick or type an ID to build the URI."; }
+      else if (t.ids.includes(val)) { r.className = "result ok"; r.innerHTML = `✅ <code>resources/read</code> → <b>${t.tpl.replace(`{${t.arg}}`, val)}</b><br><span class="note">Needs the <code>${t.scope}</code> scope.</span>`; }
+      else { r.className = "result bad"; r.innerHTML = `❌ No ${tIdx ? "order" : "product"} ${esc(val)}. Reading it returns a "resource not found" protocol error, not empty contents.`; }
+    }
+    $("tpl-seg").onclick = e => { const b = e.target.closest("[data-tpl]"); if (b) { tIdx = +b.dataset.tpl; input.value = ""; renderTpl(); } };
+    $("keys").onclick = e => {
+      const b = e.target.closest("[data-key]");
+      if (!b) return;
+      const k = b.dataset.key;
+      input.value = k === "⌫" ? input.value.slice(0, -1) : k === "✕" ? "" : input.value + k;
+      renderTpl();
+    };
+    $("sugg").onclick = e => { const b = e.target.closest("[data-id]"); if (b) { input.value = b.dataset.id; renderTpl(); } };
+    input.addEventListener("input", renderTpl);
+    renderTpl();
+
+    /* ---------- Live updates ---------- */
+    const SEQ = [
+      { col: "c1", cls: "", txt: "subscriptions/listen → products/101", h: "1 · Client subscribes", pts: ["Opens one stream listing the URIs it cares about", "<code>resourceSubscriptions: [\"shop://products/101\"]</code>", "This is the 2026-07-28 way. Older servers use <code>resources/subscribe</code>"], stock: 14 },
+      { col: "c1", cls: "note", txt: "← notifications/subscriptions/acknowledged", h: "2 · Server acknowledges", pts: ["The server confirms which subscriptions it honors", "The client keeps that list: only honored URIs will notify"], stock: 14 },
+      { col: "c13", cls: "act", txt: "🤖 Agent calls update_stock (minus 2, approved)", h: "3 · A tool changes the store", pts: ["A write tool, so the host asks a human first (Chapter 09)", "The store server writes the change to its database"], stock: 14 },
+      { col: "c2", cls: "", txt: "UPDATE product 101 · stock 12", h: "4 · Store is updated", pts: ["The database stays the source of truth", "The server never caches stock it can't keep fresh"], stock: 12 },
+      { col: "c2", cls: "note", txt: "server: publish change for products/101", h: "5 · Server publishes a change", pts: ["After the write, the server announces the changed URI", "TypeScript SDK: <code>server.server.sendResourceUpdated({ uri })</code>"], stock: 12 },
+      { col: "c1", cls: "note", txt: "← notifications/resources/updated", h: "6 · Client is notified", pts: ["Params carry only the <code>uri</code>, not the new data", "Only clients that subscribed to that URI get it"], stock: 12 },
+      { col: "c1", cls: "", txt: "resources/read → products/101", h: "7 · Client re-reads", pts: ["Fetches fresh contents and refreshes the context", "Stock is now 12. No polling needed"], stock: 12, read: true },
+    ];
+    let sIdx = -1;
+    function renderSeq() {
+      $("msgs").innerHTML = SEQ.map((s, i) => `<div class="msg ${i <= sIdx ? "shown" : ""} ${i === sIdx ? "now" : ""}"><div class="bar ${s.cls} ${s.col}">${s.txt}</div></div>`).join("");
+      $("sdots").innerHTML = SEQ.map((_, i) => `<i class="${i <= sIdx ? "on" : ""}"></i>`).join("");
+      const done = sIdx === SEQ.length - 1;
+      $("seq-next").textContent = done ? "↺ Replay" : `▶ Step ${sIdx + 2}`;
+      if (sIdx < 0) {
+        $("seq-detail").innerHTML = `<div class="lbl">Product 101 · client's copy</div><div class="stock">14 in stock</div><ul class="bullets"><li>The client has read product 101 once</li><li>Without a subscription it would never know the stock changed</li><li>Tap the button to subscribe and follow a change</li></ul>`;
+        return;
+      }
+      const s = SEQ[sIdx];
+      const known = s.read ? 12 : 14;
+      $("seq-detail").innerHTML = `<div class="lbl">Product 101 · client's copy</div><div class="stock">${known} in stock ${s.stock !== known ? '<span class="note">(store already says ' + s.stock + ")</span>" : ""}</div><h3>${s.h}</h3><ul class="bullets">${s.pts.map(p => `<li>${p}</li>`).join("")}</ul>`;
+    }
+    $("seq-next").onclick = () => { sIdx = sIdx === SEQ.length - 1 ? -1 : sIdx + 1; renderSeq(); };
+    renderSeq();
+
+    /* ---------- Try: resource or tool ---------- */
+    const RT = [
+      ["Let the user attach today's store settings to the chat", "r", "The host picks read-only context: a resource."],
+      ["Lower stock for product 103 after a breakage", "t", "It changes the store, and the model decides to do it: a tool."],
+      ["Show a browsable list of products in a sidebar picker", "r", "Listing for a UI picker is what resources/list is for."],
+      ["Let the model search orders by status while answering", "t", "The model chooses when to search, with arguments: a tool."],
+      ["Keep order 5004's details fresh while a reply is drafted", "r", "Subscribe to the order resource and re-read on update."],
+      ["Send a refund for order 5002", "t", "An action with side effects: always a tool, with approval."],
+      ["Give the model the store's timezone and currency up front", "r", "Stable context the app can include: store/info."],
+      ["Page through 5,000 products to find low stock", "t", "Large, filtered queries fit a tool. The catalog resource's description even says so."],
+    ];
+    let rtI = 0, rtRes = [], rtPick = null;
+    function renderRT() {
+      $("rt-dots").innerHTML = RT.map((_, i) => `<i class="${rtRes[i] === true ? "good" : rtRes[i] === false ? "bad" : ""}"></i>`).join("");
+      if (rtI >= RT.length) {
+        const score = rtRes.filter(Boolean).length;
+        $("rt-case").innerHTML = `${score >= 7 ? "🏆" : score >= 5 ? "👍" : "🌱"} ${score} / ${RT.length}`;
+        $("rt-btns").style.visibility = "hidden";
+        $("rt-fb").innerHTML = "Rule of thumb: <b>app picks → resource</b>, <b>model acts → tool</b>.";
+        $("rt-next").textContent = "↺ Restart";
+        return;
+      }
+      $("rt-btns").style.visibility = "visible";
+      $("rt-case").textContent = RT[rtI][0];
+      document.querySelectorAll("#rt-btns .btn").forEach(b => { b.disabled = rtPick !== null; b.classList.toggle("active", rtPick === b.dataset.rt); });
+      $("rt-fb").innerHTML = rtPick === null ? "Pick one." : `${rtPick === RT[rtI][1] ? '<b class="good">✓ Right.</b>' : '<b class="bad">✗ Not quite.</b>'} ${RT[rtI][2]}`;
+      $("rt-next").textContent = "Next →";
+      $("rt-next").disabled = rtPick === null;
+    }
+    $("rt-btns").onclick = e => {
+      const b = e.target.closest("[data-rt]");
+      if (!b || rtPick !== null || rtI >= RT.length) return;
+      rtPick = b.dataset.rt; rtRes[rtI] = rtPick === RT[rtI][1]; renderRT();
+    };
+    $("rt-next").onclick = () => {
+      if (rtI >= RT.length) { rtI = 0; rtRes = []; rtPick = null; }
+      else if (rtPick !== null) { rtI++; rtPick = null; }
+      renderRT();
+    };
+    renderRT();
+
+    /* ---------- Try: build the URI ---------- */
+    const B_TPL = ["shop://products/{productId}", "shop://orders/{orderId}", "shop://store/info", "shop://catalog"];
+    const BUILD = [
+      { ask: "Attach order 5004 so the assistant can draft a reply", tpl: 1, vals: ["5004", "104", "5040"], val: "5004" },
+      { ask: "Show the full details of the Linen Apron (ID 102)", tpl: 0, vals: ["102", "5002", "120"], val: "102" },
+      { ask: "Give the model the store's currency and timezone", tpl: 2, vals: ["—"], val: "—" },
+      { ask: "Watch the Brass Task Lamp (ID 107) for stock changes", tpl: 0, vals: ["107", "5007", "170"], val: "107" },
+    ];
+    let bI = 0, bTpl = null, bVal = null, bChecked = false, bRes = [];
+    const fill = (t, v) => !B_TPL[t].includes("{") ? B_TPL[t] : B_TPL[t].replace(/\{\w+\}/, v && v !== "—" ? v : "{…}");
+    function renderBuild() {
+      $("b-dots").innerHTML = BUILD.map((_, i) => `<i class="${bRes[i] === true ? "good" : bRes[i] === false ? "bad" : ""}"></i>`).join("");
+      if (bI >= BUILD.length) {
+        const score = bRes.filter(Boolean).length;
+        $("b-ask").textContent = `${score === BUILD.length ? "🏆" : "👍"} ${score} / ${BUILD.length} URIs built`;
+        $("b-tpl").innerHTML = ""; $("b-val").innerHTML = "";
+        $("b-built").textContent = "Templates + an ID reach any record.";
+        $("b-fb").textContent = "";
+        $("b-check").style.display = "none";
+        $("b-next").textContent = "↺ Restart";
+        return;
+      }
+      const q = BUILD[bI];
+      $("b-check").style.display = "";
+      $("b-ask").textContent = q.ask;
+      $("b-tpl").innerHTML = B_TPL.map((t, i) => `<button class="chip ${bTpl === i ? "sel" : ""}" data-bt="${i}">${t.replace("shop://", "")}</button>`).join("");
+      $("b-val").innerHTML = q.vals.map(v => `<button class="chip ${bVal === v ? "sel" : ""}" data-bv="${v}">${v === "—" ? "no value needed" : v}</button>`).join("");
+      $("b-built").textContent = bTpl === null ? "…" : fill(bTpl, bVal);
+      if (bChecked) {
+        const ok = bRes[bI];
+        $("b-fb").innerHTML = ok ? '<b class="good">✓ Correct.</b> The host would read exactly this URI.' : `<b class="bad">✗ Should be</b> <code>${fill(q.tpl, q.val)}</code>`;
+      } else $("b-fb").textContent = "Pick a pattern and a value, then check.";
+      $("b-check").disabled = bChecked || bTpl === null || bVal === null;
+      $("b-next").textContent = "Next →";
+      $("b-next").disabled = !bChecked;
+    }
+    $("b-tpl").onclick = e => { const b = e.target.closest("[data-bt]"); if (b && !bChecked) { bTpl = +b.dataset.bt; renderBuild(); } };
+    $("b-val").onclick = e => { const b = e.target.closest("[data-bv]"); if (b && !bChecked) { bVal = b.dataset.bv; renderBuild(); } };
+    $("b-check").onclick = () => {
+      if (bChecked || bTpl === null || bVal === null) return;
+      const q = BUILD[bI];
+      bRes[bI] = bTpl === q.tpl && bVal === q.val;
+      bChecked = true; renderBuild();
+    };
+    $("b-next").onclick = () => {
+      if (bI >= BUILD.length) { bI = 0; bRes = []; }
+      else if (bChecked) bI++;
+      else return;
+      bTpl = null; bVal = null; bChecked = false; renderBuild();
+    };
+    renderBuild();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["📌 A direct resource", "<code>server.registerResource('store-info', 'shop://store/info', { title, mimeType }, async uri =&gt; ({ contents: [{ uri: uri.href, text }] }))</code>", "Keep it read-only. Anything that changes data belongs in a tool.", "Inspector CLI: <code>--method resources/list</code>, then <code>resources/read --uri shop://store/info</code>"],
+      ["🧩 A resource template", "<code>new ResourceTemplate('shop://products/{productId}', { list: async () =&gt; ({ resources }) })</code>", "<code>list</code> is required. Pass <code>undefined</code> for things nobody should browse, like orders.", "<code>--method resources/templates/list</code> shows the template"],
+      ["⌨️ Argument completion", "Pseudocode: <code>complete: { productId: prefix =&gt; ids.filter(id =&gt; id.startsWith(prefix)).slice(0, 20) }</code>", "Cap and time-box suggestions. Never suggest IDs the caller can't read.", "Send <code>completion/complete</code> with <code>ref/resource</code> and a partial value: at most 100 values come back"],
+      ["🔒 Read with a scope check", "Pseudocode: <code>if (!scopes.has('products:read')) throw forbidden(); const p = await db.product(id); if (!p) throw notFound(uri);</code>", "Unknown URI: a protocol error (<code>-32602</code>), never empty <code>contents</code>.", "<code>--method resources/read --uri shop://products/999</code> must fail"],
+      ["📣 Publish a change", "<code>await server.server.sendResourceUpdated({ uri: 'shop://products/101' })</code>", "Send it only to clients that subscribed. It carries the URI, not the new data.", "Subscribe in the web Inspector, change stock, watch the notification arrive"],
+      ["👂 Subscribe from a client", "Pseudocode: 2026-07-28 → one <code>subscriptions/listen</code> with <code>resourceSubscriptions: [uri]</code>. Legacy → <code>resources/subscribe</code> per URI.", "Re-read after every update. A cached copy is stale the moment it arrives.", "Switch the Inspector's protocol era (modern vs legacy) and compare"],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${watch}</p>
+          <div class="lbl">Verify</div><p>${verify}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(4);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Auth & Scopes · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+    .lbl { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    pre.json .k { color: var(--accent); }
+    pre.json .s { color: var(--good); }
+    pre.json .b { color: var(--bad); }
+    .tag { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+    .tag.ok { background: var(--good-soft); color: var(--good); }
+    .tag.no { background: var(--bad-soft); color: var(--bad); }
+    .tag.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+    /* ---------- Explore ---------- */
+    .layers { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; max-width: 720px; margin: 0 auto 20px; }
+    .layer { text-align: center; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+    .layer b { display: block; font-size: 15px; }
+    .layer span { font-size: 13px; color: var(--muted); }
+    .layers .arr { color: var(--muted); font-size: 20px; }
+    .tok-row { margin-bottom: 18px; }
+    .calls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; height: 100%; }
+    .call {
+      font: inherit; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 6px;
+      min-height: 96px; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--surface); color: var(--text); transition: border-color .2s, background .2s;
+    }
+    .call .tag { margin-top: auto; }
+    .call .nm { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+    .call .sc { font-size: 12px; color: var(--muted); }
+    .call.sel { border-color: var(--accent); background: var(--accent-soft); }
+    .detail { display: flex; flex-direction: column; gap: 12px; }
+    .detail h3 { margin: 0; font-size: 18px; }
+    .where { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .aha { margin-top: 18px; text-align: center; }
+    .aha span { display: inline-block; background: var(--accent-soft); padding: 10px 16px; border-radius: 14px; font-weight: 700; }
+
+    /* ---------- Learn: pipeline + scopes ---------- */
+    .pipe { display: flex; flex-direction: column; gap: 8px; }
+    .stage {
+      font: inherit; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 12px;
+      min-height: 56px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--surface); color: var(--text);
+    }
+    .stage .n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; background: var(--surface-2); }
+    .stage .tx { flex: 1; min-width: 0; }
+    .stage .tx b { display: block; font-size: 14px; }
+    .stage .tx span { display: block; font-size: 12px; color: var(--muted); }
+    .stage.sel { border-color: var(--accent); background: var(--accent-soft); }
+    .stage.sel .n { background: var(--accent); color: #fff; }
+    .scopes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 760px) { .scopes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .scope {
+      font: inherit; cursor: pointer; min-height: 64px; padding: 10px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    }
+    .scope .nm { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; font-weight: 700; }
+    .scope .ct { font-size: 12px; color: var(--muted); }
+    .scope.sel { border-color: var(--accent); background: var(--accent-soft); }
+    .unlock { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+    @media (max-width: 700px) { .unlock { grid-template-columns: 1fr; } }
+    .unlock ul { margin: 0; padding-left: 18px; }
+    .unlock li { font-size: 14px; margin: 3px 0; overflow-wrap: anywhere; }
+    .shape3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 1000px) { .shape3 { grid-template-columns: 1fr; } }
+    .shape3 .card { display: flex; flex-direction: column; gap: 10px; }
+    .shape3 h4 { margin: 0; font-size: 16px; }
+
+    /* ---------- Credentials ---------- */
+    .who { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 760px) { .who { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .who .card { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; padding: 14px 10px; }
+    .who .ic { font-size: 26px; }
+    .who b { font-size: 15px; }
+    .holds { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .hold { font-size: 12px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); }
+    .hold.yes { background: var(--good-soft); color: var(--good); font-weight: 700; }
+    .hold.no { color: var(--muted); }
+
+    /* ---------- OAuth ---------- */
+    .flow-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .flow-wrap { grid-template-columns: 1fr; } }
+    .steps-list { display: flex; flex-direction: column; gap: 6px; }
+    .fstep {
+      font: inherit; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+      min-height: 48px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--surface); color: var(--text); font-size: 14px;
+    }
+    .fstep .n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--surface-2); }
+    .fstep .who2 { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .fstep.sel { border-color: var(--accent); background: var(--accent-soft); }
+    .fstep.sel .n { background: var(--accent); color: #fff; }
+    .fdetail { display: flex; flex-direction: column; gap: 12px; }
+    .fdetail h3 { margin: 0; font-size: 18px; }
+    .fnav { display: flex; gap: 8px; justify-content: center; margin-top: auto; }
+    .fnav .btn { min-height: 44px; min-width: 120px; }
+    .rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+    @media (max-width: 1000px) { .rules { grid-template-columns: 1fr; } }
+    .rules .card { display: flex; flex-direction: column; gap: 8px; }
+    .rules h4 { margin: 0; font-size: 16px; }
+    .cmp { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .cmp th, .cmp td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .cmp th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+    .cmp td:first-child { font-weight: 700; width: 24%; }
+    .cmp-wrap { overflow-x: auto; }
+
+    /* ---------- Try ---------- */
+    .tryq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 900px) { .tryq { grid-template-columns: 1fr; } }
+    .tryq .card { display: flex; flex-direction: column; gap: 12px; }
+    .q-case { font-size: 17px; font-weight: 700; min-height: 96px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; overflow-wrap: anywhere; }
+    .q-case.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .q-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .q-btns .btn { min-height: 52px; font-size: 14px; padding: 8px 10px; }
+    .q-btns .btn.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+    .q-btns .btn.good { background: var(--good-soft); border-color: var(--good); }
+    .q-btns .btn.bad { background: var(--bad-soft); border-color: var(--bad); }
+    .fb { min-height: 64px; font-size: 14px; color: var(--muted); text-align: center; }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-foot { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: auto; }
+    .q-foot .btn { min-height: 44px; }
+    .run { margin-top: 16px; }
+    .run h3 { margin: 0 0 4px; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+    .step { display: flex; flex-direction: column; gap: 6px; }
+    .step .n { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 19px; font-weight: 700; }
+    .flip-back { justify-content: flex-start; padding: 14px 16px; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 8px 0 0; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+    .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 10 Auth & Scopes</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 10 · Auth & Scopes</div>
+      <h1>Who are you?<br>What may you do?</h1>
+      <p>Two checks on every request: a token at the door, a scope at every tool.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#learn">💡 Learn</a>
+        <a href="#creds">🔑 Credentials</a>
+        <a href="#oauth">🌐 OAuth</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Who can do what?</h2>
+      <p class="sub">Pick a token, then tap a call. Two example clients: a read-only agent and an ops agent.</p>
+
+      <div class="layers">
+        <div class="layer"><b>🚪 The door</b><span>Who are you? · bearer token</span></div>
+        <span class="arr">→</span>
+        <div class="layer"><b>🛂 The desk</b><span>May you do this? · scope</span></div>
+      </div>
+
+      <div class="seg tok-row" id="tokens"></div>
+
+      <div class="two">
+        <div class="card"><div class="calls" id="calls"></div></div>
+        <div class="card detail" id="call-detail"></div>
+      </div>
+      <div class="aha"><span>💡 A valid token is not permission. Authentication ≠ authorization.</span></div>
+    </section>
+
+    <!-- ================= LEARN ================= -->
+    <section class="section" id="learn">
+      <span class="step-label">💡 Learn</span>
+      <h2>Every request, in order</h2>
+      <p class="sub">The path a <code>POST /mcp</code> takes through a well-built server. Tap a stage.</p>
+
+      <div class="two">
+        <div class="card"><div class="pipe" id="pipe"></div></div>
+        <div class="card detail" id="pipe-detail"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Six scopes, least privilege</h2>
+      <p class="sub">The store server's example scopes. Each one unlocks a narrow slice. Tap a scope.</p>
+      <div class="scopes" id="scopes"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="lbl" id="scope-title"></div>
+        <div class="unlock" id="unlock"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Missing a scope looks different per primitive</h2>
+      <p class="sub">Same rule, three shapes. One sensible design, matched to what the caller can do with the answer.</p>
+      <div class="shape3">
+        <div class="card">
+          <h4>🛠️ Tool call</h4>
+          <span class="tag warn">Tool error · isError: true</span>
+          <pre class="json">{ <span class="k">"isError"</span>: true,
+  <span class="k">"structuredContent"</span>: { <span class="k">"error"</span>: {
+    <span class="k">"code"</span>: <span class="s">"FORBIDDEN"</span>,
+    <span class="k">"details"</span>: { <span class="k">"requiredScope"</span>: <span class="s">"inventory:write"</span> } } } }</pre>
+          <p class="note">The model reads it and can tell the user why. Nothing ran. <code>FORBIDDEN</code> is an example code your own server might define.</p>
+        </div>
+        <div class="card">
+          <h4>📚 Resource read</h4>
+          <span class="tag no">Protocol error</span>
+          <pre class="json">{ <span class="k">"error"</span>: {
+  <span class="k">"code"</span>: -32600,
+  <span class="k">"message"</span>: <span class="s">"Forbidden: reading shop://orders/5004 requires the \"orders:read\" scope."</span> } }</pre>
+          <p class="note">A failed read has no result to show, so a JSON-RPC error fits.</p>
+        </div>
+        <div class="card">
+          <h4>💬 Prompt get</h4>
+          <span class="tag no">Protocol error</span>
+          <pre class="json">{ <span class="k">"error"</span>: {
+  <span class="k">"code"</span>: -32600,
+  <span class="k">"message"</span>: <span class="s">"Forbidden: this prompt requires the \"orders:read\" scope."</span> } }</pre>
+          <p class="note">Also: listings can simply leave out what the caller may not see.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CREDENTIALS ================= -->
+    <section class="section" id="creds">
+      <span class="step-label">🔑 Credentials</span>
+      <h2>Two credentials, two jobs</h2>
+      <p class="sub">The client's token and the store's key never meet. Pick a credential to see who holds it.</p>
+
+      <div class="seg" id="cred-pick" style="margin-bottom:16px"></div>
+      <div class="who" id="who"></div>
+      <div class="card" style="margin-top:16px" id="cred-note"></div>
+    </section>
+
+    <!-- ================= OAUTH ================= -->
+    <section class="section" id="oauth">
+      <span class="step-label">🌐 OAuth</span>
+      <h2>Production: OAuth 2.1</h2>
+      <p class="sub">What the 2026-07-28 spec defines for HTTP servers. A static dev token covers only step 8. An authorization server adds steps 1 to 7.</p>
+
+      <div class="flow-wrap">
+        <div class="card"><div class="steps-list" id="flow"></div></div>
+        <div class="card fdetail" id="flow-detail"></div>
+      </div>
+
+      <div class="rules">
+        <div class="card">
+          <h4>🎯 Audience binding</h4>
+          <ul class="bullets">
+            <li>Client sends <code>resource=</code> its server's URI (RFC 8707).</li>
+            <li>Server <b>MUST</b> reject tokens issued for anyone else.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>🚫 No token passthrough</h4>
+          <ul class="bullets">
+            <li>Server <b>MUST NOT</b> forward the client's token upstream.</li>
+            <li>Prevents the "confused deputy": a server acting with powers nobody gave it.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>📮 Header only</h4>
+          <ul class="bullets">
+            <li><code>Authorization: Bearer …</code> on <b>every</b> request.</li>
+            <li>Never in the URL query string.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">A simple dev setup vs production</h2>
+      <p class="sub">Keep token checking behind one verifier. Swap static tokens for OAuth later, keep everything else.</p>
+      <div class="card cmp-wrap">
+        <table class="cmp">
+          <thead><tr><th></th><th>Dev setup (static tokens)</th><th>Production (OAuth 2.1)</th></tr></thead>
+          <tbody>
+            <tr><td>Who issues tokens</td><td>You, in the server's config</td><td>An authorization server</td></tr>
+            <tr><td>Who the client is</td><td>Matched by token digest</td><td>Client ID Metadata Document, pre-registration, or (deprecated) DCR</td></tr>
+            <tr><td>Lifetime</td><td>Until you change the config</td><td>Short-lived tokens, refresh optional</td></tr>
+            <tr><td>Missing scope</td><td>In-band tool error, e.g. <code>FORBIDDEN</code></td><td>HTTP 403 <code>insufficient_scope</code>, then step-up</td></tr>
+            <tr><td>Verification</td><td>Hash lookup, constant-time compare</td><td>JWT validation or token introspection</td></tr>
+            <tr><td>Best for</td><td>Local dev, internal agents</td><td>Remote servers used by real people</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Scope it, then audit it</h2>
+      <p class="sub">Left: pick the least scope each tool needs. Right: find what's wrong with each setup.</p>
+
+      <div class="tryq">
+        <div class="card">
+          <div class="lbl" style="text-align:center">Assign the scope</div>
+          <div class="dots" id="as-dots"></div>
+          <div class="q-case mono" id="as-case"></div>
+          <div class="q-btns" id="as-btns"></div>
+          <div class="fb" id="as-fb"></div>
+          <div class="q-foot"><button class="btn" id="as-next">Next →</button></div>
+        </div>
+        <div class="card">
+          <div class="lbl" style="text-align:center">What's wrong here?</div>
+          <div class="dots" id="ws-dots"></div>
+          <div class="q-case" id="ws-case"></div>
+          <div class="q-btns" id="ws-btns"></div>
+          <div class="fb" id="ws-fb"></div>
+          <div class="q-foot"><button class="btn" id="ws-next">Next →</button></div>
+        </div>
+      </div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="note">Against an MCP server you build. <code>https://store.example.com/mcp</code> is a placeholder for your own endpoint. The Inspector needs Node 22.19 or newer.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1 · KNOCK WITHOUT A TOKEN</span><pre class="json">curl -i -X POST \
+  https://store.example.com/mcp \
+  -H "Content-Type: application/json" \
+  -d "{}"</pre><p class="note">Expect <b>401</b> with a <code>WWW-Authenticate: Bearer</code> challenge. With OAuth it carries <code>resource_metadata</code>.</p></div>
+          <div class="step"><span class="n">2 · READ THE METADATA</span><pre class="json">curl \
+  https://store.example.com/.well-known/oauth-protected-resource</pre><p class="note">Or the URL from <code>resource_metadata</code>. Look for <code>authorization_servers</code> and <code>scopes_supported</code>.</p></div>
+          <div class="step"><span class="n">3 · CONNECT WITH A TOKEN</span><pre class="json">npx @modelcontextprotocol/inspector \
+  --server-url https://store.example.com/mcp \
+  --transport http --protocol-era auto \
+  --header "Authorization: Bearer &lt;read-only token&gt;"</pre></div>
+          <div class="step"><span class="n">4 · TRY A WRITE AS READ-ONLY</span><pre class="json">npx @modelcontextprotocol/inspector --cli \
+  https://store.example.com/mcp --transport http --protocol-era auto \
+  --header "Authorization: Bearer &lt;read-only token&gt;" \
+  --method tools/call --tool-name update_stock \
+  --tool-arg productId=102 --tool-arg operation=increment \
+  --tool-arg quantity=1 --tool-arg reason=Recount</pre><p class="note">Expect a refusal: 403 <code>insufficient_scope</code> with OAuth, or a scope tool error in a simple setup. Nothing should change.</p></div>
+        </div>
+        <p class="note" style="margin-top:10px">Docs: <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" target="_blank" rel="noopener">Authorization spec</a> · <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a>.</p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li><b>Authentication</b> (who) happens at the HTTP door. <b>Authorization</b> (what) happens at every tool, resource and prompt.</li>
+          <li>Give each client the <b>least scope</b> it needs. A read-only agent gets read scopes only.</li>
+          <li>Keep credentials apart: <b>never pass the client's token upstream</b>. In production, use OAuth 2.1 with audience-bound tokens.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+
+    /* ---------- Explore ---------- */
+    const READONLY = ["products:read", "orders:read"];
+    const TOKENS = [
+      { k: "none", label: "🚫 No token", scopes: null },
+      { k: "wrong", label: "❓ Wrong token", scopes: null },
+      { k: "ro", label: "👀 readonly-agent", scopes: READONLY },
+      { k: "ops", label: "🛠️ ops-agent", scopes: ["products:read", "products:write", "inventory:write", "orders:read", "orders:write"] },
+    ];
+    const CALLS = [
+      { k: "sp", nm: "search_products", sc: "products:read", kind: "tool" },
+      { k: "gs", nm: "get_stock_level", sc: "products:read", kind: "tool" },
+      { k: "us", nm: "update_stock", sc: "inventory:write", kind: "tool" },
+      { k: "gc", nm: "get_customer", sc: "customers:read", kind: "tool" },
+      { k: "dp", nm: "delete_product", sc: "products:write", kind: "tool" },
+      { k: "ro", nm: "read orders/5004", sc: "orders:read", kind: "resource" },
+    ];
+    let tok = "ro", call = "us";
+    const allowed = (t, c) => t.scopes && (t.scopes.includes("*") || t.scopes.includes(c.sc));
+
+    function outcome(t, c) {
+      if (!t.scopes) return {
+        tag: '<span class="tag no">HTTP 401 · stopped at the door</span>',
+        head: t.k === "none" ? "No credentials, no entry" : "Unknown token, no entry",
+        wire: t.k === "none"
+          ? `<span class="b">HTTP/1.1 401 Unauthorized</span>\nWWW-Authenticate: Bearer resource_metadata=<span class="s">"…"</span>`
+          : `<span class="b">HTTP/1.1 401 Unauthorized</span>\nWWW-Authenticate: Bearer error=<span class="s">"invalid_token"</span>, resource_metadata=<span class="s">"…"</span>`,
+        pts: ["The request never reaches MCP or any tool.", t.k === "none" ? "No token at all: the challenge carries no error code (RFC 6750)." : "A bad token gets <code>error=\"invalid_token\"</code>.", "The host should report it as an authentication problem, not a tool failure."],
+      };
+      if (allowed(t, c)) return {
+        tag: '<span class="tag ok">Allowed</span>',
+        head: `${t.label.replace(/^\S+ /, "")} may call this`,
+        wire: c.kind === "resource"
+          ? `{ <span class="k">"contents"</span>: [ { <span class="k">"uri"</span>: <span class="s">"shop://orders/5004"</span>, … } ] }`
+          : `{ <span class="k">"structuredContent"</span>: { … }, <span class="k">"content"</span>: [ … ] }`,
+        pts: [`Token holds <code>${t.scopes.includes("*") ? "*" : c.sc}</code>.`,
+          c.sc.endsWith(":write") ? "The host still asks a human to approve this write (Chapter 09)." : "Reads run straight away."],
+      };
+      return {
+        tag: '<span class="tag warn">Tool error · FORBIDDEN</span>',
+        head: "Passed the door, stopped at the desk",
+        wire: `{\n  <span class="k">"isError"</span>: true,\n  <span class="k">"structuredContent"</span>: {\n    <span class="k">"error"</span>: {\n      <span class="k">"code"</span>: <span class="s">"FORBIDDEN"</span>,\n      <span class="k">"details"</span>: {\n        <span class="k">"requiredScope"</span>: <span class="s">"${c.sc}"</span>\n      }\n    }\n  }\n}`,
+        pts: ["The token is valid, so this is not a 401.", `It lacks <code>${c.sc}</code>, so the tool never ran and the store was never called.`],
+      };
+    }
+
+    function renderExplore() {
+      const t = TOKENS.find(x => x.k === tok);
+      $("tokens").innerHTML = TOKENS.map(x => `<button class="btn ${x.k === tok ? "active" : ""}" data-tok="${x.k}">${x.label}</button>`).join("");
+      $("calls").innerHTML = CALLS.map(c => {
+        const ok = allowed(t, c);
+        const tag = !t.scopes ? '<span class="tag no">401</span>' : ok ? '<span class="tag ok">OK</span>' : '<span class="tag warn">FORBIDDEN</span>';
+        return `<button class="call ${c.k === call ? "sel" : ""}" data-call="${c.k}"><span class="nm">${c.nm.replace(/_/g, "_<wbr>")}</span><span class="sc">needs ${c.sc}</span>${tag}</button>`;
+      }).join("");
+      const c = CALLS.find(x => x.k === call);
+      const o = outcome(t, c);
+      $("call-detail").innerHTML = `
+        <div class="where">${o.tag}</div>
+        <h3>${o.head}</h3>
+        <pre class="json">${o.wire}</pre>
+        <ul class="bullets">${o.pts.map(p => `<li>${p}</li>`).join("")}</ul>
+        <p class="note">Scopes held: ${t.scopes ? t.scopes.map(s => `<code>${s}</code>`).join(" ") : "none (unauthenticated)"}</p>`;
+    }
+    $("explore").addEventListener("click", e => {
+      const b = e.target.closest("[data-tok]"), c = e.target.closest("[data-call]");
+      if (b) { tok = b.dataset.tok; renderExplore(); }
+      if (c) { call = c.dataset.call; renderExplore(); }
+    });
+    renderExplore();
+
+    /* ---------- Learn: pipeline ---------- */
+    const PIPE = [
+      { t: "Host and Origin check", s: "Blocks DNS rebinding", fail: "HTTP 403", pts: ["Only expected hostnames and origins are accepted.", "Runs before the token is even read.", "Test it: send <code>Host: evil.example</code> → 403."] },
+      { t: "Verify the bearer token", s: "Authentication: who are you?", fail: "HTTP 401", pts: ["Look the token up, or validate it as a JWT.", "Success gives the caller's identity and scopes, e.g. <code>{ clientId, scopes }</code>.", "Failure sends a <code>WWW-Authenticate</code> challenge."] },
+      { t: "Per-client rate limit", s: "Stops runaway agents", fail: "HTTP 429", pts: ["Keyed by client, e.g. 120 requests a minute (example value).", "Adds a <code>Retry-After</code> header.", "Kept in memory it's per instance; use a shared store when you scale out."] },
+      { t: "Validate arguments", s: "Check against the input schema", fail: "Tool error", pts: ["Types, bounds and formats from the tool's input schema.", "An input schema is <b>not</b> authorization.", "A well-formed request still needs the right scope."] },
+      { t: "Check the scope", s: "Authorization: may you do this?", fail: "Tool error", pts: ["Each tool declares the scope it needs; check it before running.", "Resources and prompts check scopes too.", "A wildcard like <code>*</code> passes every check, so hand it out rarely."] },
+      { t: "Call the store's API", s: "With the server's own credentials", fail: "Upstream error", pts: ["Uses the server's own API key, never the client's token.", "If the store rejects that key, return a generic error.", "Keep the details in the server log."] },
+    ];
+    let stage = 1;
+    function renderPipe() {
+      $("pipe").innerHTML = PIPE.map((p, i) => `<button class="stage ${i === stage ? "sel" : ""}" data-stage="${i}"><span class="n">${i + 1}</span><span class="tx"><b>${p.t}</b><span>${p.s}</span></span></button>`).join("");
+      const p = PIPE[stage];
+      $("pipe-detail").innerHTML = `
+        <div class="lbl">Stage ${stage + 1} of ${PIPE.length}</div>
+        <h3>${p.t}</h3>
+        <div class="where"><span class="note">If it fails:</span><span class="tag ${stage < 3 ? "no" : "warn"}">${p.fail}</span></div>
+        <ul class="bullets">${p.pts.map(x => `<li>${x}</li>`).join("")}</ul>
+        <p class="note">Order matters: cheap checks first, so bad requests cost almost nothing.</p>`;
+    }
+    $("pipe").addEventListener("click", e => { const b = e.target.closest("[data-stage]"); if (b) { stage = +b.dataset.stage; renderPipe(); } });
+    renderPipe();
+
+    /* ---------- Learn: scopes ---------- */
+    const SCOPES = {
+      "products:read": { tools: ["search_products", "get_product", "get_stock_level"], res: ["shop://store/info", "shop://store/settings", "shop://catalog", "shop://products/{productId}"], prompts: [] },
+      "products:write": { tools: ["delete_product"], res: [], prompts: [] },
+      "inventory:write": { tools: ["update_stock"], res: [], prompts: [] },
+      "orders:read": { tools: ["list_orders", "get_order"], res: ["shop://orders/{orderId}"], prompts: ["analyze_order", "draft_customer_reply", "summarize_sales"] },
+      "orders:write": { tools: ["update_order_status", "add_order_note"], res: [], prompts: [] },
+      "customers:read": { tools: ["get_customer"], res: [], prompts: [] },
+    };
+    let scope = "inventory:write";
+    function renderScopes() {
+      $("scopes").innerHTML = Object.keys(SCOPES).map(s => {
+        const n = SCOPES[s].tools.length + SCOPES[s].res.length + SCOPES[s].prompts.length;
+        return `<button class="scope ${s === scope ? "sel" : ""}" data-scope="${s}"><span class="nm">${s}</span><span class="ct">${n} unlock${n === 1 ? "" : "s"}${READONLY.includes(s) ? " · read-only agent" : ""}</span></button>`;
+      }).join("");
+      const u = SCOPES[scope];
+      const col = (h, arr) => `<div><div class="lbl">${h}</div>${arr.length ? `<ul>${arr.map(x => `<li><code>${x}</code></li>`).join("")}</ul>` : '<p class="note">None</p>'}</div>`;
+      $("scope-title").textContent = `What ${scope} unlocks`;
+      $("unlock").innerHTML = col("🛠️ Tools", u.tools) + col("📚 Resources", u.res) + col("💬 Prompts", u.prompts);
+    }
+    $("scopes").addEventListener("click", e => { const b = e.target.closest("[data-scope]"); if (b) { scope = b.dataset.scope; renderScopes(); } });
+    renderScopes();
+
+    /* ---------- Credentials ---------- */
+    const PARTIES = [
+      { k: "model", ic: "🧠", t: "The model" },
+      { k: "client", ic: "🧩", t: "MCP client" },
+      { k: "server", ic: "🖥️", t: "MCP server" },
+      { k: "store", ic: "🏪", t: "Store API" },
+    ];
+    const CREDS = {
+      token: { label: "🔐 Client token", holds: { model: "no", client: "yes", server: "digest" , store: "no" },
+        pts: ["Lives with the client (e.g. an environment variable) and in the server's client registry.", "The server can keep only a hash and compare in constant time.", "Proves which client is calling and maps it to scopes."] },
+      key: { label: "🗝️ Store key", holds: { model: "no", client: "no", server: "yes", store: "yes" },
+        pts: ["The store's API key and secret stay in the server's configuration.", "Send them over HTTPS only.", "If the store rejects them, tools return a generic error and the details go to the server log."] },
+    };
+    const HOLD_TXT = { yes: "✓ holds it", no: "✗ never sees it", digest: "✓ digest only" };
+    let cred = "token";
+    function renderCreds() {
+      const c = CREDS[cred];
+      $("cred-pick").innerHTML = Object.entries(CREDS).map(([k, v]) => `<button class="btn ${k === cred ? "active" : ""}" data-cred="${k}">${v.label}</button>`).join("");
+      $("who").innerHTML = PARTIES.map(p => `
+        <div class="card"><span class="ic">${p.ic}</span><b>${p.t}</b>
+          <div class="holds"><div class="hold ${c.holds[p.k] === "no" ? "no" : "yes"}">${HOLD_TXT[c.holds[p.k]]}</div></div></div>`).join("");
+      $("cred-note").innerHTML = `<div class="lbl">${c.label}</div><ul class="bullets">${c.pts.map(x => `<li>${x}</li>`).join("")}</ul>
+        <p class="note">Local stdio servers are different: the spec says they should read credentials from the environment instead of running OAuth.</p>`;
+    }
+    $("creds").addEventListener("click", e => { const b = e.target.closest("[data-cred]"); if (b) { cred = b.dataset.cred; renderCreds(); } });
+    renderCreds();
+
+    /* ---------- OAuth flow ---------- */
+    const FLOW = [
+      { t: "Call without a token", w: "Client → Server", wire: `<span class="b">HTTP/1.1 401 Unauthorized</span>\nWWW-Authenticate: Bearer\n  resource_metadata=<span class="s">"https://store.example.com/.well-known/oauth-protected-resource"</span>,\n  scope=<span class="s">"products:read"</span>`, pts: ["The challenge points to the server's metadata.", "The <code>scope</code> hint tells the client what to ask for."] },
+      { t: "Read protected resource metadata", w: "Client → Server", wire: `{ <span class="k">"resource"</span>: <span class="s">"https://store.example.com/mcp"</span>,\n  <span class="k">"authorization_servers"</span>: [<span class="s">"https://auth.example.com"</span>],\n  <span class="k">"scopes_supported"</span>: [<span class="s">"products:read"</span>, …] }`, pts: ["Servers <b>MUST</b> publish this (RFC 9728).", "It names the authorization server to use."] },
+      { t: "Discover the authorization server", w: "Client → Auth server", wire: `GET /.well-known/oauth-authorization-server\n<span class="k">or</span> /.well-known/openid-configuration`, pts: ["Clients <b>MUST</b> support both: RFC 8414 and OpenID Connect Discovery.", "Gives the authorize and token endpoints."] },
+      { t: "Get a client ID", w: "Client ↔ Auth server", wire: `client_id=<span class="s">"https://app.example.com/oauth/client.json"</span>`, pts: ["A pre-registered ID comes first, if the client has one.", "Otherwise, a Client ID Metadata Document: an HTTPS URL used as the client ID.", "Dynamic Client Registration is <b>deprecated</b> in this revision."] },
+      { t: "Prepare PKCE and resource", w: "Client", wire: `code_challenge=<span class="s">…</span>&code_challenge_method=S256\n&resource=<span class="s">https%3A%2F%2Fstore.example.com%2Fmcp</span>\n&scope=<span class="s">products:read</span>`, pts: ["PKCE ties the later token request to this browser session.", "<code>resource</code> names the server the token is for.", "The client records the expected issuer."] },
+      { t: "User approves in the browser", w: "User → Auth server", wire: `302 → https://app.example.com/callback\n  ?code=<span class="s">…</span>&iss=<span class="s">https://auth.example.com</span>`, pts: ["Only the user sees the login and consent screen.", "The client checks <code>iss</code> before using the code (RFC 9207)."] },
+      { t: "Exchange the code for a token", w: "Client → Auth server", wire: `POST /token\n  code=<span class="s">…</span>&code_verifier=<span class="s">…</span>&resource=<span class="s">…</span>\n→ { <span class="k">"access_token"</span>: <span class="s">"eyJ…"</span>, <span class="k">"expires_in"</span>: 3600 }`, pts: ["The verifier proves it's the same client that started.", "The token is bound to this server's URI (its audience)."] },
+      { t: "Call with the token", w: "Client → Server", wire: `POST /mcp\nAuthorization: Bearer <span class="s">eyJ…</span>`, pts: ["The server validates the token and its audience.", "A simple dev setup starts here, with a static token.", "Missing scope later? 403 <code>insufficient_scope</code>, then step-up."] },
+    ];
+    let fs = 0;
+    function renderFlow() {
+      $("flow").innerHTML = FLOW.map((f, i) => `<button class="fstep ${i === fs ? "sel" : ""}" data-fs="${i}"><span class="n">${i + 1}</span>${f.t}<span class="who2">${f.w}</span></button>`).join("");
+      const f = FLOW[fs];
+      $("flow-detail").innerHTML = `
+        <div class="lbl">Step ${fs + 1} of ${FLOW.length} · ${f.w}</div>
+        <h3>${f.t}</h3>
+        <pre class="json">${f.wire}</pre>
+        <ul class="bullets">${f.pts.map(x => `<li>${x}</li>`).join("")}</ul>
+        <div class="fnav"><button class="btn" data-fmove="-1" ${fs === 0 ? "disabled" : ""}>← Back</button><button class="btn primary" data-fmove="1" ${fs === FLOW.length - 1 ? "disabled" : ""}>Next →</button></div>`;
+    }
+    $("oauth").addEventListener("click", e => {
+      const b = e.target.closest("[data-fs]"), m = e.target.closest("[data-fmove]");
+      if (b) { fs = +b.dataset.fs; renderFlow(); }
+      if (m && !m.disabled) { fs = Math.max(0, Math.min(FLOW.length - 1, fs + +m.dataset.fmove)); renderFlow(); }
+    });
+    renderFlow();
+
+    /* ---------- Try: quizzes ---------- */
+    function quiz(prefix, items, mono) {
+      let i = 0, picked = null;
+      const results = [];
+      function render() {
+        const q = items[i];
+        $(prefix + "-dots").innerHTML = items.map((_, j) => `<i class="${results[j] === true ? "good" : results[j] === false ? "bad" : ""}"></i>`).join("");
+        $(prefix + "-case").innerHTML = q.q;
+        $(prefix + "-btns").innerHTML = q.o.map((o, j) => {
+          const cls = picked === null ? "" : j === q.a ? "good" : j === picked ? "bad" : "";
+          return `<button class="btn ${mono ? "mono" : ""} ${cls}" data-${prefix}="${j}" ${picked !== null ? "disabled" : ""}>${o}</button>`;
+        }).join("");
+        if (picked === null) $(prefix + "-fb").innerHTML = "Pick one.";
+        else $(prefix + "-fb").innerHTML = `<b class="${picked === q.a ? "good" : "bad"}">${picked === q.a ? "✓ Right." : "✗ Not quite."}</b> ${q.why}`;
+        const done = results.filter(r => r !== undefined).length === items.length;
+        $(prefix + "-next").textContent = done && i === items.length - 1 && picked !== null ? `Score ${results.filter(Boolean).length}/${items.length} · Restart` : "Next →";
+      }
+      $(prefix + "-btns").addEventListener("click", e => {
+        const b = e.target.closest(`[data-${prefix}]`);
+        if (!b || picked !== null) return;
+        picked = +b.dataset[prefix];
+        results[i] = picked === items[i].a;
+        render();
+      });
+      $(prefix + "-next").addEventListener("click", () => {
+        if (i === items.length - 1 && results.filter(r => r !== undefined).length === items.length) { i = 0; results.length = 0; }
+        else i = (i + 1) % items.length;
+        picked = null;
+        render();
+      });
+      render();
+    }
+
+    quiz("as", [
+      { q: "search_products", o: ["products:read", "products:write", "orders:read", "customers:read"], a: 0, why: "Searching is a read of the catalog. Guard it with <code>products:read</code>." },
+      { q: "delete_product", o: ["products:read", "inventory:write", "products:write", "orders:write"], a: 2, why: "Deleting changes the catalog: <code>products:write</code>. The host also asks for explicit approval." },
+      { q: "update_order_status", o: ["orders:read", "orders:write", "customers:read", "products:read"], a: 1, why: "It changes an order, so <code>orders:write</code>." },
+      { q: "get_stock_level", o: ["inventory:write", "products:read", "orders:read", "customers:read"], a: 1, why: "Reading stock is a catalog read here: <code>products:read</code>. Only changing it needs <code>inventory:write</code>." },
+      { q: "update_stock", o: ["inventory:write", "products:write", "products:read", "orders:write"], a: 0, why: "It writes stock: <code>inventory:write</code>, not the broader products scope." },
+      { q: "get_customer", o: ["orders:read", "customers:read", "products:read", "orders:write"], a: 1, why: "Customer data has its own scope, <code>customers:read</code>, so the read-only agent can't see it." },
+      { q: "add_order_note", o: ["orders:read", "customers:read", "orders:write", "products:read"], a: 2, why: "Adding a note writes to the order: <code>orders:write</code>." },
+      { q: "get_order", o: ["orders:read", "orders:write", "customers:read", "products:read"], a: 0, why: "Reading one order: <code>orders:read</code>." },
+    ], true);
+
+    quiz("ws", [
+      { q: "The client sends <code>https://…/mcp?token=abc123</code>", o: ["Token is too short", "Token is in the URL", "Missing scope", "Nothing wrong"], a: 1, why: "Tokens go in the <code>Authorization</code> header. URLs end up in logs and browser history." },
+      { q: "The MCP server forwards the client's bearer token to the store's API", o: ["Token passthrough", "Rate limit missing", "Wrong scope name", "Nothing wrong"], a: 0, why: "Servers <b>MUST NOT</b> pass client tokens upstream. Use the server's own store key instead." },
+      { q: "Every agent, even a reporting bot, gets <code>scopes: [\"*\"]</code>", o: ["Tokens must expire", "Not least privilege", "Needs OAuth", "Nothing wrong"], a: 1, why: "A reporting bot needs read scopes only, like a <code>readonly-agent</code> with <code>products:read</code> and <code>orders:read</code>." },
+      { q: "The server accepts any valid token from the company's auth server, whatever it was issued for", o: ["No audience check", "Token in the URL", "Rate limit missing", "Nothing wrong"], a: 0, why: "Servers <b>MUST</b> check the token was issued for them (audience, RFC 8707)." },
+      { q: "A local stdio server opens a browser OAuth flow on every start", o: ["Should use env credentials", "Token passthrough", "Missing PKCE", "Nothing wrong"], a: 0, why: "The spec says stdio servers should not follow the HTTP OAuth flow; they read credentials from the environment." },
+    ], false);
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["🚪 Check at the door", "HTTP layer", "<code>// pseudocode<br>if (!verify(token)) return 401 + WWW-Authenticate: Bearer resource_metadata=\"…\"</code>", "Checking auth inside each tool instead. One forgotten check and that tool is open.", "<code>curl</code> without a token: 401 with a challenge, before any MCP handling."],
+      ["🔑 Constant-time match", "static dev tokens", "<code>// pseudocode<br>h = sha256(token); hit = clients.find(c =&gt; timingSafeEqual(c.hash, h))</code>", "Storing raw tokens, or comparing with <code>===</code>, which leaks timing.", "A wrong token of the right length still gets 401."],
+      ["🎯 Audience check", "OAuth tokens", "<code>// pseudocode<br>if (!aud.includes(\"https://store.example.com/mcp\")) reject()</code>", "Accepting any valid token from the same authorization server.", "Send a token issued for a different API. It must be rejected."],
+      ["🛂 A scope per tool", "authorization", "<code>// pseudocode<br>tool(\"update_stock\", { scope: \"inventory:write\" }, run)<br>// check the scope before run()</code>", "Relying on the input schema or the host's approval instead. Neither is authorization.", "Call <code>update_stock</code> with a read-only token: refused, nothing written."],
+      ["🚫 No passthrough", "upstream calls", "<code>// pseudocode<br>fetch(storeApi, { headers: { Authorization: serverOwnKey } })</code>", "Forwarding the client's bearer token upstream: the confused deputy.", "Check the upstream request log: only the server's own key appears."],
+      ["📮 Header on every request", "client side", "<code>Authorization: Bearer &lt;token&gt;</code> on every <code>POST /mcp</code>", "Tokens in URLs or in logs. Both end up somewhere you don't control.", "Inspector with <code>--header \"Authorization: Bearer …\"</code>, then check your logs redact it."],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, kw, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="file">${kw}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${watch}</p>
+          <div class="lbl">Verify</div><p>${verify}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(10);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

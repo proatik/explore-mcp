@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Tools · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    :root { --t3-num: #b0700a; }
+    @media (prefers-color-scheme: dark) { :root { --t3-num: #f0b45a; } }
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .code {
+      margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--surface-2);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word; color: var(--text);
+    }
+    .code .k { color: var(--accent); }
+    .code .s { color: var(--good); }
+    .code .n { color: var(--t3-num); }
+    .code .b { color: var(--bad); }
+    .code .c { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+    .card h4 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+    .note { font-size: 13px; color: var(--muted); }
+
+    /* ---------- Explore ---------- */
+    .ex-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 18px; }
+    .ex-def-row { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: center; }
+    @media (max-width: 900px) { .ex-def-row { grid-template-columns: 1fr; } }
+    .ex-grid .card { display: flex; flex-direction: column; gap: 12px; }
+    .ex-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+    .trace { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
+    @media (max-width: 760px) { .trace { grid-template-columns: 1fr; } }
+    .trace li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; animation: t3-in .35s ease both; }
+    .trace li:nth-child(2) { animation-delay: .12s; }
+    .trace li:nth-child(3) { animation-delay: .24s; }
+    .trace li:nth-child(4) { animation-delay: .36s; }
+    .trace .who { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: 17px; }
+    .trace .lbl { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+    .trace .code { padding: 10px 12px; font-size: 12.5px; }
+    @keyframes t3-in { from { opacity: 0; transform: translateY(6px); } }
+    .verdict { border-radius: 12px; padding: 12px 14px; font-weight: 600; font-size: 14px; margin-top: auto; }
+    .verdict.good { background: var(--good-soft); }
+    .verdict.bad { background: var(--bad-soft); }
+
+    /* ---------- Anatomy ---------- */
+    .ana { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .ana { grid-template-columns: 1fr; } }
+    .rows { display: flex; flex-direction: column; gap: 8px; }
+    .rows .row-btn { flex: 1; }
+    .row-btn {
+      font: inherit; text-align: left; cursor: pointer; min-height: 52px; padding: 10px 14px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text);
+      display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center;
+      transition: border-color .2s, background .2s;
+    }
+    .row-btn:hover { border-color: var(--accent); }
+    .row-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .row-btn .key { font-weight: 800; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: var(--accent); }
+    .row-btn .val { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ana-panel h3 { margin: 0 0 4px; font-size: 22px; }
+    .ana-panel .tagline { color: var(--muted); margin-bottom: 14px; }
+    .ana-cols { display: grid; gap: 14px; }
+    .ana-cols h4 { margin-bottom: 6px; }
+    .ann-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    @media (max-width: 900px) { .ann-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .ann { display: flex; flex-direction: column; gap: 6px; }
+    .ann .nm { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; font-size: 14px; }
+    .ann .def { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+    .ann .ex { margin-top: auto; font-size: 13px; color: var(--muted); }
+    .warn-card { margin-top: 12px; display: flex; gap: 12px; align-items: flex-start; border-left: 4px solid var(--accent); }
+    .warn-card .ico { font-size: 22px; line-height: 1.2; }
+
+    /* ---------- Results & errors ---------- */
+    .res-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; margin-top: 14px; align-items: stretch; }
+    @media (max-width: 900px) { .res-body { grid-template-columns: 1fr; } }
+    #res-info { justify-content: center; }
+    .res-body .card { display: flex; flex-direction: column; gap: 10px; }
+    .codes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    @media (max-width: 1000px) { .codes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .code-btn {
+      font: inherit; cursor: pointer; min-height: 44px; padding: 8px 10px; border-radius: 10px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;
+    }
+    .code-btn.retry { border-style: dashed; }
+    .code-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .code-detail { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+    .pill { font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+    .pill.good { background: var(--good-soft); color: var(--good); }
+    .pill.bad { background: var(--bad-soft); color: var(--bad); }
+    .pipe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 900px) { .pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .step-btn {
+      font: inherit; cursor: pointer; text-align: left; min-height: 96px; padding: 12px 14px; border-radius: 14px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .step-btn .no { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+    .step-btn .t { font-weight: 800; }
+    .step-btn .s { font-size: 13px; color: var(--muted); }
+    .step-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .pipe-detail { margin-top: 12px; }
+    .notes2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+    @media (max-width: 700px) { .notes2 { grid-template-columns: 1fr; } }
+
+    /* ---------- Try ---------- */
+    .fix { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .fix { grid-template-columns: 1fr; } }
+    .fix-q { display: flex; flex-direction: column; gap: 10px; }
+    .fix-q .q-title { font-size: 18px; font-weight: 800; }
+    .opts { display: flex; flex-direction: column; gap: 8px; }
+    .opt {
+      font: inherit; text-align: left; cursor: pointer; min-height: 48px; padding: 10px 14px; border-radius: 12px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text); font-size: 14px;
+    }
+    .opt:hover:not(:disabled) { border-color: var(--accent); }
+    .opt:disabled { cursor: default; }
+    .opt.right { border-color: var(--good); background: var(--good-soft); }
+    .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .opt .mono { font-size: 12.5px; }
+    .fb { font-size: 14px; min-height: 42px; color: var(--muted); }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .q-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: auto; }
+    .q-foot .btn { min-height: 44px; }
+    .q-foot .btn:disabled { opacity: .45; cursor: default; }
+    .dots { display: flex; gap: 6px; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.on { background: var(--accent); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+
+    .tools-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 1000px) { .tools-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .tcard { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+    .tcard .tn { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; font-size: 13px; word-break: break-word; }
+    .tcard .mod { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .tseg { display: grid; grid-template-columns: 1fr 1fr 1.45fr; gap: 4px; }
+    .tseg button {
+      font: inherit; cursor: pointer; min-height: 44px; padding: 4px 2px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--text);
+    }
+    .tseg button.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tcard.ok { border-color: var(--good); background: var(--good-soft); }
+    .tcard.no { border-color: var(--bad); background: var(--bad-soft); }
+    .tcard .res { font-size: 12px; color: var(--muted); }
+    .check-bar { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+    .check-bar .btn { min-height: 44px; }
+    .check-msg { font-weight: 700; flex-basis: 100%; text-align: center; min-height: 1.5em; }
+
+    .run { margin-top: 32px; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .run { grid-template-columns: 1fr; } }
+    .run .card { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 20px; font-weight: 700; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13.5px; }
+    .flip-back .mono { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 03 Tools</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 03 · Tools</div>
+      <h1>A tool is a contract<br>with the model.</h1>
+      <p>How a model finds, calls and recovers from the tools a server exposes.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#anatomy">💡 Anatomy</a>
+        <a href="#results">📦 Results & errors</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Same request, two tool designs</h2>
+      <p class="sub">A Lumen &amp; Leaf operator asks the shop assistant to fix a stock count. Switch the tool design and watch the call.</p>
+      <div class="seg" id="ex-seg">
+        <button class="btn" data-ex="0">😕 Vague tool</button>
+        <button class="btn" data-ex="1">✅ Well-designed tool</button>
+      </div>
+      <div class="ex-grid">
+        <div class="card">
+          <h4>What the model sees</h4>
+          <div class="ex-def-row">
+            <pre class="code" id="ex-def"></pre>
+            <ul class="ex-notes" id="ex-notes"></ul>
+          </div>
+        </div>
+        <div class="card">
+          <h4>What happens</h4>
+          <ol class="trace" id="ex-trace"></ol>
+          <div class="verdict" id="ex-verdict"></div>
+        </div>
+      </div>
+      <p class="note" style="text-align:center;margin-top:12px">The good version is the store server's <span class="mono">update_stock</span> tool, simplified.</p>
+    </section>
+
+    <!-- ================= ANATOMY ================= -->
+    <section class="section" id="anatomy">
+      <span class="step-label">💡 Learn</span>
+      <h2>Anatomy of a tool</h2>
+      <p class="sub">What <span class="mono">tools/list</span> returns for one of the store server's tools. Tap a field.</p>
+      <div class="ana">
+        <div class="rows" id="ana-rows"></div>
+        <div class="card ana-panel" id="ana-panel"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Annotations are hints</h2>
+      <p class="sub">Four optional booleans that describe behavior. Defaults are from the spec (2026-07-28).</p>
+      <div class="ann-grid" id="ann-grid"></div>
+      <div class="card warn-card">
+        <span class="ico">⚠️</span>
+        <ul class="bullets">
+          <li>The spec: annotations are <b>not guaranteed</b>. Clients must treat them as untrusted unless the server is trusted.</li>
+          <li>A careful host: annotations can <b>raise</b> the approval level, never lower it. The host's own rules come first.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= RESULTS & ERRORS ================= -->
+    <section class="section" id="results">
+      <span class="step-label">📦 Results</span>
+      <h2>Three ways a call can end</h2>
+      <p class="sub">Only one of them is a JSON-RPC error. Tap each.</p>
+      <div class="seg" id="res-seg"></div>
+      <div class="res-body">
+        <div class="card"><h4 id="res-call"></h4><pre class="code" id="res-json"></pre></div>
+        <div class="card" id="res-info"></div>
+      </div>
+
+      <h2 style="margin-top:40px">Example error codes</h2>
+      <p class="sub">A convention the store server defines, not codes from the spec. Dashed ones are retryable. Tap a code.</p>
+      <div class="card">
+        <div class="codes" id="codes"></div>
+        <div class="code-detail" id="code-detail"></div>
+      </div>
+
+      <h2 style="margin-top:40px">What runs on every <span class="mono">tools/call</span></h2>
+      <p class="sub">The path a call takes through a well-built server. Tap a step.</p>
+      <div class="pipe" id="pipe"></div>
+      <div class="card pipe-detail" id="pipe-detail"></div>
+      <div class="notes2">
+        <div class="card">
+          <h4>tools/list</h4>
+          <ul class="bullets">
+            <li>Returns the tools available to the caller, in a stable order.</li>
+            <li>May vary by the caller's authorization. Must not vary per connection.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>notifications/tools/list_changed</h4>
+          <ul class="bullets">
+            <li>Sent by servers that declare <span class="mono">listChanged: true</span>, to clients listening via <span class="mono">subscriptions/listen</span>.</li>
+            <li>The store server declares <span class="mono">false</span>: its 10 tools are fixed at startup.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Fix the tool definition</h2>
+      <p class="sub">Five flawed definitions. Pick the best fix for each.</p>
+      <div class="card fix" id="fix"></div>
+
+      <h2 style="margin-top:40px">Read-only, write or destructive?</h2>
+      <p class="sub">Classify the store server's 10 tools the way their annotations do, then check.</p>
+      <div class="tools-grid" id="tools-grid"></div>
+      <div class="check-bar">
+        <button class="btn primary" id="tg-check">Check</button>
+        <button class="btn" id="tg-reset">Reset</button>
+        <span class="check-msg" id="tg-msg"></span>
+      </div>
+
+      <div class="run">
+        <div class="card">
+          <h3>▶ Try it for real</h3>
+          <pre class="code" id="run-cmds"></pre>
+          <p class="note">Commands from the official <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector docs</a> (Node 22.19+). Swap in your own server's URL or launch command.</p>
+        </div>
+        <div class="card">
+          <h4>What to look for</h4>
+          <ul class="bullets">
+            <li>The <b>Tools</b> tab lists every tool with its schemas and annotations.</li>
+            <li>Call a read tool, then a write: compare <span class="mono">content</span> with <span class="mono">structuredContent</span>.</li>
+            <li>Send an ID that doesn't exist: a good server answers with a tool error, not a crash.</li>
+            <li>Send a wrong type: the schema should reject it before any logic runs.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>The <b>name, description and schemas</b> are all the model knows. Make them precise.</li>
+          <li>Return business failures as <b>tool errors</b> (<span class="mono">isError</span>) with stable codes so the model can recover.</li>
+          <li><b>Annotations are hints.</b> The host's approval policy decides what actually runs.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = (id) => document.getElementById(id);
+    const escHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    function fmt(v, ind = "") {
+      const one = JSON.stringify(v).replace(/":/g, "\": ").replace(/,(?=["{\[\d\-tfn])/g, ", ");
+      if (v === null || typeof v !== "object" || one.length + ind.length <= 64) return one;
+      const pad = ind + "  ";
+      if (Array.isArray(v)) return "[\n" + v.map((x) => pad + fmt(x, pad)).join(",\n") + "\n" + ind + "]";
+      return "{\n" + Object.entries(v).map(([k, x]) => pad + JSON.stringify(k) + ": " + fmt(x, pad)).join(",\n") + "\n" + ind + "}";
+    }
+    function hl(v) {
+      const s = escHtml(typeof v === "string" ? v : fmt(v));
+      return s.replace(/("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?/g, (m, str, colon, kw) => {
+        if (str) return colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`;
+        if (kw) return `<span class="b">${m}</span>`;
+        return `<span class="n">${m}</span>`;
+      });
+    }
+    const list = (a) => `<ul class="bullets">${a.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+
+    /* ---------- Explore ---------- */
+    const EX = [
+      {
+        def: {
+          name: "stock",
+          inputSchema: { type: "object", properties: { id: {}, qty: {} } }
+        },
+        notes: ["❓ A name that doesn't say read or write", "❓ No description to read", "❓ <span class=\"mono\">id</span> and <span class=\"mono\">qty</span> accept anything", "❓ No output schema, no annotations"],
+        trace: [
+          ["🧑", "Operator", "“Set the Ceramic Pour-Over Set to 20 in stock.”"],
+          ["🤖", "Model picks a tool", "Guesses <span class=\"mono\">stock</span>. It can't tell whether it reads or writes, or what an id looks like."],
+          ["📨", "Arguments sent", { id: "Ceramic Pour-Over Set", qty: "20 units" }],
+          ["🖥️", "Server replies", { isError: true, content: [{ type: "text", text: "Error" }] }]
+        ],
+        verdict: ["bad", "❌ Wrong ID, wrong type, and an error with nothing to fix. The model retries blindly or tells the user it worked."]
+      },
+      {
+        def: {
+          name: "update_stock",
+          title: "Update stock",
+          description: "Set or adjust a product's stock quantity. One call may change stock by at most 1000 units and never below zero.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              productId: { type: "integer", minimum: 1 },
+              operation: { enum: ["set", "increment", "decrement"] },
+              quantity: { type: "integer", minimum: 0, maximum: 100000 },
+              reason: { type: "string", minLength: 3, maxLength: 200 }
+            },
+            required: ["productId", "operation", "quantity", "reason"]
+          },
+          outputSchema: { type: "object", properties: { previousQuantity: { type: "integer" }, newQuantity: { type: "integer" } } },
+          annotations: { readOnlyHint: false, destructiveHint: false }
+        },
+        notes: ["✔ A verb_noun name plus a human title", "✔ The description states the limits", "✔ Typed, bounded inputs with an enum", "✔ An output schema and honest annotations"],
+        trace: [
+          ["🧑", "Operator", "“Set the Ceramic Pour-Over Set to 20 in stock.”"],
+          ["🤖", "Model picks a tool", "Finds the ID with <span class=\"mono\">search_products</span> (101), then picks <span class=\"mono\">update_stock</span>. The host asks the operator to confirm."],
+          ["📨", "Arguments sent", { productId: 101, operation: "set", quantity: 20, reason: "Stock count after delivery" }],
+          ["🖥️", "Server replies", { structuredContent: { productId: 101, previousQuantity: 14, newQuantity: 20, stockStatus: "instock" } }]
+        ],
+        verdict: ["good", "✅ Valid arguments first time, a typed result the model can quote, and a human approved the write."]
+      }
+    ];
+    let exMode = 0;
+    function renderEx() {
+      const e = EX[exMode];
+      [...$("ex-seg").children].forEach((b) => b.classList.toggle("active", +b.dataset.ex === exMode));
+      $("ex-def").innerHTML = hl(e.def);
+      $("ex-notes").innerHTML = e.notes.map((n) => `<li>${n}</li>`).join("");
+      $("ex-trace").innerHTML = e.trace.map(([who, lbl, body]) => `
+        <li><span class="who">${who}</span><div><div class="lbl">${lbl}</div>${
+          typeof body === "string" ? `<div>${body}</div>` : `<pre class="code">${hl(body)}</pre>`}</div></li>`).join("");
+      $("ex-verdict").className = `verdict ${e.verdict[0]}`;
+      $("ex-verdict").textContent = e.verdict[1];
+    }
+    $("ex-seg").onclick = (ev) => { const b = ev.target.closest("[data-ex]"); if (b) { exMode = +b.dataset.ex; renderEx(); } };
+    renderEx();
+
+    /* ---------- Anatomy ---------- */
+    const ANA = [
+      { key: "name", val: "\"update_stock\"", title: "name", tag: "The ID the model calls. Required.",
+        spec: ["Unique within one server, case-sensitive", "1–128 characters: letters, digits, <span class=\"mono\">_ - .</span>", "Hosts that merge servers may prefix names to avoid clashes"],
+        repo: ["verb_noun: <span class=\"mono\">get_order</span>, <span class=\"mono\">search_products</span>, <span class=\"mono\">delete_product</span>", "The verb tells the model, and you, whether it reads or writes"] },
+      { key: "title", val: "\"Update stock\"", title: "title", tag: "A human-friendly label for UIs. Optional.",
+        spec: ["Display order: <span class=\"mono\">title</span>, then <span class=\"mono\">annotations.title</span>, then <span class=\"mono\">name</span>", "For people, not for routing"],
+        repo: ["Every tool has one, shown in the Inspector and in host approval prompts"] },
+      { key: "description", val: "\"Set or adjust a product's stock…\"", title: "description", tag: "What the model reads to decide when and how to call.",
+        spec: ["A hint to the model, not a guarantee", "Clients can show it to people too"],
+        repo: ["States the limits: at most 1,000 units per call, never below zero", "Explains when to use <span class=\"mono\">set</span> versus <span class=\"mono\">increment</span> or <span class=\"mono\">decrement</span>", "Notes that well-behaved clients ask for approval"] },
+      { key: "inputSchema", val: "{ type: \"object\", … }", title: "inputSchema", tag: "The arguments, as JSON Schema. Required.",
+        spec: ["Root must be <span class=\"mono\">type: \"object\"</span>; JSON Schema 2020-12 by default", "No parameters: <span class=\"mono\">{ type: \"object\", additionalProperties: false }</span>", "Servers must validate all inputs"],
+        repo: ["Often written as a typed schema (e.g. Zod in TypeScript) that the SDK publishes as JSON Schema", "Bounded integers, an enum for <span class=\"mono\">operation</span>, a 3–200 character <span class=\"mono\">reason</span>", "Optional <span class=\"mono\">idempotencyKey</span> for safe retries"] },
+      { key: "outputSchema", val: "{ previousQuantity, newQuantity, … }", title: "outputSchema", tag: "The shape of the structured result. Optional.",
+        spec: ["If present, the server must return <span class=\"mono\">structuredContent</span> that matches it", "Clients should validate against it"],
+        repo: ["Each of the 10 tools declares one", "Here: productId, name, previous and new quantity, stock status"] },
+      { key: "annotations", val: "{ readOnlyHint: false, … }", title: "annotations", tag: "Behavior hints for clients. Optional.",
+        spec: ["readOnly, destructive, idempotent, openWorld", "Hints only: untrusted unless the server is trusted"],
+        repo: ["<span class=\"mono\">readOnlyHint: false</span>, <span class=\"mono\">destructiveHint: false</span>: it changes stock but doesn't destroy data", "<span class=\"mono\">idempotentHint: false</span>: the same increment twice adds twice"] }
+    ];
+    let anaActive = 0;
+    function renderAna() {
+      $("ana-rows").innerHTML = ANA.map((a, i) => `
+        <button class="row-btn ${i === anaActive ? "active" : ""}" data-a="${i}">
+          <span class="key">${a.key}</span><span class="val">${escHtml(a.val)}</span>
+        </button>`).join("");
+      const a = ANA[anaActive];
+      $("ana-panel").innerHTML = `
+        <h3 class="mono">${a.title}</h3>
+        <div class="tagline">${a.tag}</div>
+        <div class="ana-cols">
+          <div><h4>📘 The spec</h4>${list(a.spec)}</div>
+          <div><h4>🔧 In the store server</h4>${list(a.repo)}</div>
+        </div>`;
+    }
+    $("ana-rows").onclick = (ev) => { const b = ev.target.closest("[data-a]"); if (b) { anaActive = +b.dataset.a; renderAna(); } };
+    renderAna();
+
+    const ANN = [
+      ["readOnlyHint", "false", "Doesn't modify its environment.", "The store server's 6 read tools set it to true."],
+      ["destructiveHint", "true", "May overwrite or delete, rather than only add. Applies when not read-only.", "Only <span class=\"mono\">delete_product</span> sets it to true."],
+      ["idempotentHint", "false", "Repeating the same call has no extra effect. Applies when not read-only.", "<span class=\"mono\">update_order_status</span> and <span class=\"mono\">delete_product</span> set it to true."],
+      ["openWorldHint", "true", "Reaches entities outside a closed domain.", "All 10 tools: they call the store's backend over HTTP."]
+    ];
+    $("ann-grid").innerHTML = ANN.map(([n, d, m, e]) => `
+      <div class="card ann"><span class="nm">${n}</span><span class="def">default ${d}</span><span>${m}</span><span class="ex">${e}</span></div>`).join("");
+
+    /* ---------- Results & errors ---------- */
+    const RES = [
+      { tab: "✅ Success", call: "update_order_status · order 5003 → completed",
+        json: {
+          content: [{ type: "text", text: "Order 5003 moved from \"processing\" to \"completed\".\n\n{ …same data as JSON… }" }],
+          structuredContent: { order: { id: 5003, status: "completed" }, previousStatus: "processing", noteAdded: false }
+        },
+        info: [["When", ["The call worked"]], ["What the model gets", ["The text block: a summary plus the JSON", "Typed clients read <span class=\"mono\">structuredContent</span>"]], ["In the store server", ["One helper fills both from the same object", "The spec asks for the JSON text copy for backwards compatibility"]]] },
+      { tab: "⚠️ Tool error", call: "update_order_status · order 5001 → processing",
+        json: {
+          isError: true,
+          content: [{ type: "text", text: "INVALID_TRANSITION: Cannot move order 5001 from \"completed\" to \"processing\"." }],
+          structuredContent: { error: { code: "INVALID_TRANSITION", message: "Cannot move order 5001 …", retryable: false, details: { from: "completed", to: "processing", allowed: [] } } }
+        },
+        info: [["When", ["The request was valid, but the operation couldn't happen", "Business rules, not found, bad values, store down"]], ["What the model gets", ["Clients should pass it on so the model can self-correct", "Here: <span class=\"mono\">allowed: []</span> tells it completed orders are final"]], ["In the store server", ["One helper returns code, message, retryable and optional details", "The codes are the server's own convention"]]] },
+      { tab: "⛔ Protocol error", call: "tools/call · name: \"refund_order\"",
+        json: { jsonrpc: "2.0", id: 7, error: { code: -32602, message: "Unknown tool: refund_order" } },
+        info: [["When", ["The request itself is broken", "Unknown tool, malformed request, server failure"]], ["What the model gets", ["Clients may pass it on, but recovery is unlikely"]], ["In the store server", ["The SDK answers these", "A wrapper around each handler turns unexpected exceptions into an <span class=\"mono\">INTERNAL_ERROR</span> tool error instead"]]] }
+    ];
+    let resActive = 0;
+    function renderRes() {
+      $("res-seg").innerHTML = RES.map((r, i) => `<button class="btn ${i === resActive ? "active" : ""}" data-r="${i}">${r.tab}</button>`).join("");
+      const r = RES[resActive];
+      $("res-call").textContent = r.call;
+      $("res-json").innerHTML = hl(r.json);
+      $("res-info").innerHTML = r.info.map(([h, a]) => `<div><h4>${h}</h4>${list(a)}</div>`).join("");
+    }
+    $("res-seg").onclick = (ev) => { const b = ev.target.closest("[data-r]"); if (b) { resActive = +b.dataset.r; renderRes(); } };
+    renderRes();
+
+    const CODES = [
+      ["NOT_FOUND", false, "The product, order or customer doesn't exist."],
+      ["FORBIDDEN", false, "The access token lacks the scope this tool needs."],
+      ["VALIDATION_FAILED", false, "A business rule said no: stock below zero, too big a change, SKU mismatch."],
+      ["CONFLICT", false, "Data changed since it was read, or it's already in that state."],
+      ["INVALID_TRANSITION", false, "That order status move isn't allowed. Completed orders are final."],
+      ["RATE_LIMITED", true, "The store's backend is throttling requests. Try again shortly."],
+      ["UPSTREAM_UNAVAILABLE", true, "The backend is down or timed out. Try again shortly."],
+      ["UPSTREAM_ERROR", false, "The backend rejected the server's credentials or answered unexpectedly."],
+      ["CANCELLED", false, "The client cancelled the call, e.g. a long catalog scan."],
+      ["INTERNAL_ERROR", false, "An unexpected bug. Details stay in the server log."]
+    ];
+    let codeActive = 0;
+    function renderCodes() {
+      $("codes").innerHTML = CODES.map(([c, r], i) => `<button class="code-btn ${r ? "retry" : ""} ${i === codeActive ? "active" : ""}" data-c="${i}">${c}</button>`).join("");
+      const [c, r, m] = CODES[codeActive];
+      $("code-detail").innerHTML = `<div><b class="mono">${c}</b> · ${m}</div><span class="pill ${r ? "good" : "bad"}">${r ? "↻ retryable" : "not retryable"}</span>`;
+    }
+    $("codes").onclick = (ev) => { const b = ev.target.closest("[data-c]"); if (b) { codeActive = +b.dataset.c; renderCodes(); } };
+    renderCodes();
+
+    const PIPE = [
+      ["Schema check", "SDK validates arguments", ["The SDK checks arguments against the input schema before the handler runs", "Wrong types and out-of-range values never reach business logic"]],
+      ["Scope check", "A guard checks the scope", ["Each tool names one scope, e.g. <span class=\"mono\">inventory:write</span>", "Missing scope → <span class=\"mono\">FORBIDDEN</span> tool error (deep dive in Chapter 10)"]],
+      ["Business rules", "The service decides", ["Stock bounds and a 1,000-unit limit per call", "An order-status transition table, SKU confirmation for deletes", "Optimistic concurrency and idempotency keys"]],
+      ["Result", "Success or tool error", ["Success or a mapped tool error, never a raw exception", "Backend errors map to stable codes", "One log line per call: tool, outcome, error code, duration"]]
+    ];
+    let pipeActive = 0;
+    function renderPipe() {
+      $("pipe").innerHTML = PIPE.map(([t, s], i) => `
+        <button class="step-btn ${i === pipeActive ? "active" : ""}" data-p="${i}"><span class="no">STEP ${i + 1}</span><span class="t">${t}</span><span class="s">${s}</span></button>`).join("");
+      const [t, , pts] = PIPE[pipeActive];
+      $("pipe-detail").innerHTML = `<h4>${pipeActive + 1} · ${t}</h4>${list(pts)}`;
+    }
+    $("pipe").onclick = (ev) => { const b = ev.target.closest("[data-p]"); if (b) { pipeActive = +b.dataset.p; renderPipe(); } };
+    renderPipe();
+
+    /* ---------- Try: fix the definition ---------- */
+    const FIX = [
+      { q: "The name", snip: { name: "doStuff2", description: "Changes the status of an order." },
+        opts: [
+          ["<span class=\"mono\">\"update_order_status\"</span>", true, "A verb_noun name says exactly what it does and that it writes."],
+          ["<span class=\"mono\">\"Update Order Status!\"</span>", false, "Spaces and punctuation aren't allowed characters for tool names."],
+          ["<span class=\"mono\">\"tool_7\"</span>", false, "Valid, but it tells the model nothing. Names should carry meaning."]
+        ] },
+      { q: "The description", snip: { name: "update_order_status", description: "Updates stuff." },
+        opts: [
+          ["“Very powerful order tool. Use whenever needed.”", false, "Vague and pushy. It invites calls without saying what's allowed."],
+          ["Leave it empty: the schema says enough", false, "The model reads the description to decide when to call. Empty means guessing."],
+          ["“Change an order's status. Completed, cancelled and refunded orders are final.”", true, "States what it does and the rules, so the model avoids calls that will fail."]
+        ] },
+      { q: "The quantity field", snip: { inputSchema: { type: "object", properties: { quantity: { type: "string", description: "e.g. 20 units" } } } },
+        opts: [
+          ["<span class=\"mono\">{ \"type\": \"number\" }</span>", false, "Better, but it still allows 2.5 or a million."],
+          ["<span class=\"mono\">{ \"type\": \"integer\", \"minimum\": 0, \"maximum\": 100000 }</span>", true, "Typed and bounded, so bad values fail validation before any logic runs."],
+          ["Keep the string and parse it on the server", false, "\"20 units\", \"twenty\", \"20pcs\": parsing guesses is fragile. Let the schema do the work."]
+        ] },
+      { q: "A delete tool's annotations", snip: { name: "delete_product", annotations: { readOnlyHint: true } },
+        opts: [
+          ["Keep <span class=\"mono\">readOnlyHint: true</span> so clients don't nag", false, "That's a lie about behavior. Honest servers never under-report risk."],
+          ["<span class=\"mono\">{ \"readOnlyHint\": false, \"destructiveHint\": true }</span>", true, "Honest hints. A careful host also has its own rule for it, because hints can't be trusted blindly."],
+          ["Remove annotations so nothing is claimed", false, "The defaults would say destructive, but being explicit is clearer for every client."]
+        ] },
+      { q: "Handling a missing product", snip: "// inside the handler\nif (!product) throw new Error(\"failed\");",
+        opts: [
+          ["Return <span class=\"mono\">{ isError: true }</span> with code <span class=\"mono\">NOT_FOUND</span> and a clear message", true, "A tool error the model can read and act on, e.g. by searching for the right ID."],
+          ["Return a success with the text <span class=\"mono\">\"error\"</span>", false, "The client thinks it worked. Failures must be marked with isError."],
+          ["Let it throw: the client will see something", false, "An unexplained failure. A handler wrapper would catch it as INTERNAL_ERROR, which hides the real cause."]
+        ] }
+    ];
+    let fi = 0, fPick = null, fRes = [];
+    function renderFix() {
+      const dots = FIX.map((_, i) => `<i class="${fRes[i] === true ? "good" : fRes[i] === false ? "bad" : i === fi ? "on" : ""}"></i>`).join("");
+      if (fi >= FIX.length) {
+        const score = fRes.filter(Boolean).length;
+        $("fix").innerHTML = `
+          <div class="fix-q"><div class="q-title">${score === FIX.length ? "🏆" : score >= 3 ? "👍" : "🌱"} ${score} / ${FIX.length} fixes right</div>
+            ${list(["A tool is a contract: name, description and schemas", "Fail with tool errors, not exceptions", "Annotations describe; the host decides"])}</div>
+          <div class="fix-q" style="justify-content:center;align-items:center"><div class="dots">${dots}</div><button class="btn primary" data-retry style="min-height:44px">Try again</button></div>`;
+        return;
+      }
+      const f = FIX[fi];
+      const picked = fPick !== null;
+      $("fix").innerHTML = `
+        <div class="fix-q">
+          <div class="q-title">${fi + 1}. ${f.q}</div>
+          <pre class="code">${hl(f.snip)}</pre>
+          <div class="fb">${picked ? `<b class="${f.opts[fPick][1] ? "good" : "bad"}">${f.opts[fPick][1] ? "✓ Right." : "✗ Not quite."}</b> ${f.opts[fPick][2]}` : "What's the best fix?"}</div>
+        </div>
+        <div class="fix-q">
+          <div class="opts">${f.opts.map((o, i) => `<button class="opt ${picked && o[1] ? "right" : ""} ${picked && i === fPick && !o[1] ? "wrong" : ""}" data-o="${i}" ${picked ? "disabled" : ""}>${o[0]}</button>`).join("")}</div>
+          <div class="q-foot"><div class="dots">${dots}</div><button class="btn primary" data-next ${picked ? "" : "disabled"}>${fi === FIX.length - 1 ? "See score" : "Next →"}</button></div>
+        </div>`;
+    }
+    $("fix").onclick = (ev) => {
+      const o = ev.target.closest("[data-o]");
+      if (o && fPick === null) { fPick = +o.dataset.o; fRes[fi] = FIX[fi].opts[fPick][1]; renderFix(); return; }
+      if (ev.target.closest("[data-next]") && fPick !== null) { fi++; fPick = null; renderFix(); return; }
+      if (ev.target.closest("[data-retry]")) { fi = 0; fPick = null; fRes = []; renderFix(); }
+    };
+    renderFix();
+
+    /* ---------- Try: classify the 10 tools ---------- */
+    const KINDS = ["Read", "Write", "Destructive"];
+    const TOOLS = [
+      ["Products", "search_products", 0, "auto"], ["Products", "get_product", 0, "auto"], ["Products", "delete_product", 2, "type the name"],
+      ["Inventory", "get_stock_level", 0, "auto"], ["Inventory", "update_stock", 1, "confirm"],
+      ["Orders", "list_orders", 0, "auto"], ["Orders", "get_order", 0, "auto"], ["Orders", "update_order_status", 1, "confirm"], ["Orders", "add_order_note", 1, "confirm, or type the name if the customer sees it"],
+      ["Customers", "get_customer", 0, "auto"]
+    ];
+    let tPick = TOOLS.map(() => null), tChecked = false;
+    function renderTools() {
+      $("tools-grid").innerHTML = TOOLS.map(([mod, name, kind, appr], i) => {
+        const st = tChecked && tPick[i] !== null ? (tPick[i] === kind ? "ok" : "no") : "";
+        return `<div class="card tcard ${st}">
+          <span class="mod">${mod}</span><span class="tn">${name}</span>
+          <div class="tseg">${KINDS.map((k, j) => `<button class="${tPick[i] === j ? "sel" : ""}" data-t="${i}" data-k="${j}">${k}</button>`).join("")}</div>
+          ${tChecked && tPick[i] !== null ? `<span class="res">${KINDS[kind]} · typical host: ${appr}</span>` : ""}
+        </div>`;
+      }).join("");
+    }
+    $("tools-grid").onclick = (ev) => {
+      const b = ev.target.closest("[data-t]");
+      if (!b) return;
+      tPick[+b.dataset.t] = +b.dataset.k;
+      tChecked = false; $("tg-msg").textContent = "";
+      renderTools();
+    };
+    $("tg-check").onclick = () => {
+      tChecked = true; renderTools();
+      const right = tPick.filter((p, i) => p === TOOLS[i][2]).length;
+      const left = tPick.filter((p) => p === null).length;
+      $("tg-msg").textContent = `${right === TOOLS.length ? "🏆" : "👀"} ${right} / ${TOOLS.length} right${left ? ` · ${left} not answered` : ""}. 6 reads, 3 writes, 1 destructive.`;
+    };
+    $("tg-reset").onclick = () => { tPick = TOOLS.map(() => null); tChecked = false; $("tg-msg").textContent = ""; renderTools(); };
+    renderTools();
+
+    $("run-cmds").innerHTML = [
+      "<span class=\"c\"># browse a server's tools in the web Inspector</span>",
+      "npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto",
+      "",
+      "<span class=\"c\"># or script it with the CLI</span>",
+      "npx @modelcontextprotocol/inspector --cli https://store.example.com/mcp --transport http --protocol-era auto --method tools/list",
+      "npx @modelcontextprotocol/inspector --cli https://store.example.com/mcp --transport http --protocol-era auto \\",
+      "  --method tools/call --tool-name get_product --tool-arg productId=101",
+      "",
+      "<span class=\"c\"># a server you're building locally</span>",
+      "npx @modelcontextprotocol/inspector node path/to/server/index.js"
+    ].join("\n");
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["🧾 Register a tool", "server.registerTool(\"update_stock\", { title, description, inputSchema, outputSchema, annotations }, handler)  // TypeScript SDK style",
+        "The name, description and schemas are all the model sees. Write them for a reader with no other context.",
+        "Open the Inspector's Tools tab and read your tool exactly as a model would."],
+      ["📏 Bound every input", "quantity: z.number().int().min(0).max(100000)  // Zod",
+        "Unbounded strings and numbers let the model send anything, and your handler has to guess.",
+        "Call get_product with productId -1 and expect a validation error before any logic runs."],
+      ["📦 Return text and data", "return { content: [{ type: \"text\", text: summary }], structuredContent: data }",
+        "If you declare an outputSchema, structuredContent must match it. Keep the text copy for text-only clients.",
+        "Call get_product for 101 and compare the text block with the structured data."],
+      ["🚫 Fail with a tool error", "return { isError: true, content: [{ type: \"text\", text: \"NOT_FOUND: product 999999\" }] }",
+        "Never return a success whose text says \"error\". Mark failures with isError and a stable code.",
+        "Call get_product for 999999 and check the result is marked isError."],
+      ["🛡️ Guard every handler", "withGuard(handler): check scope → run → map errors → log one line  // pseudocode",
+        "Unexpected exceptions should become a generic INTERNAL_ERROR. Keep the details in your logs, not the reply.",
+        "Point the backend at a wrong URL, call any tool, and expect one clean error plus one log line."],
+      ["⚖️ Hints vs approval", "level = max(hostRule(tool), levelFromHints(tool.annotations))  // pseudocode",
+        "Annotations may raise the approval level, never lower it. A lying server must not get a free pass.",
+        "Mark delete_product readOnlyHint: true in a test server: your host should still ask before running it."]
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p><span class="mono">${escHtml(code)}</span></p>
+          <div class="lbl">Watch out</div><p>${escHtml(watch)}</p>
+          <div class="lbl">Verify</div><p>${escHtml(verify)}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(3);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

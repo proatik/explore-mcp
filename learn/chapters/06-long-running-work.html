@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Long-running Work · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+    .card h3 { margin: 0 0 6px; font-size: 18px; }
+    .card .lead { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+    .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+    .controls .btn { min-height: 48px; }
+    .note { font-size: 13px; color: var(--muted); margin-top: 12px; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+    .tag.good { background: var(--good-soft); color: var(--good); }
+    .tag.bad { background: var(--bad-soft); color: var(--bad); }
+    .tag.info { background: var(--accent-soft); color: var(--accent); }
+
+    /* ---------- Explore: catalog scan ---------- */
+    .scan-card { display: flex; flex-direction: column; gap: 12px; }
+    .scan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .stage { height: 96px; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; padding: 12px; text-align: center; }
+    .spinner { width: 36px; height: 36px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--accent); }
+    .spinner.on { animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .stage .big { font-weight: 800; font-size: 15px; }
+    .stage .small { font-size: 13px; color: var(--muted); }
+    .meter { width: 100%; height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+    .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+    .meter.done i { background: var(--good); }
+    .meter.halt i { background: var(--bad); }
+    .mlabel { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: -6px; }
+    .log { min-height: 168px; border-radius: 12px; background: var(--surface-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .log div { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+    .log .c { color: var(--accent); }
+    .log .s { color: var(--good); }
+    .log .x { color: var(--bad); }
+    .log .m { color: var(--muted); }
+    .scan-card .btn.cancel { min-height: 44px; align-self: center; }
+
+    /* ---------- Progress: annotated JSON ---------- */
+    pre.json { margin: 0; padding: 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .tok { display: inline-block; padding: 2px 4px; margin: -2px -1px; border-radius: 6px; cursor: pointer; border: 1.5px dashed var(--accent); color: var(--accent); font-weight: 700; min-height: 24px; }
+    .tok.active { background: var(--accent); color: #fff; border-style: solid; }
+    .explain { margin-top: 16px; min-height: 92px; display: flex; flex-direction: column; justify-content: center; }
+    .explain h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+    .explain p { margin: 0; }
+    .rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    @media (max-width: 900px) { .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .rule { padding: 16px; }
+    .rule .ico { font-size: 24px; }
+    .rule b { display: block; margin: 6px 0 4px; }
+    .rule span { font-size: 14px; color: var(--muted); }
+
+    /* ---------- Cancellation ---------- */
+    .transport-body { margin-top: 14px; min-height: 196px; }
+    .race-card { display: flex; flex-direction: column; }
+    .race-steps { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .race-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+    .race-steps li .who { flex: none; width: 58px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding-top: 2px; }
+    .race-steps li.ok { background: var(--good-soft); }
+    .race-steps li.warn { background: var(--bad-soft); }
+
+    /* ---------- Retries ---------- */
+    .stock { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 6px 0 14px; }
+    .stock .num { font-size: 44px; font-weight: 800; letter-spacing: -0.02em; min-width: 72px; text-align: center; }
+    .stock .lbl2 { font-size: 13px; color: var(--muted); }
+    .toggle-row { display: flex; justify-content: center; margin-bottom: 12px; }
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+    .stack .btn { min-height: 48px; width: 100%; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    @media (max-width: 760px) { .facts { grid-template-columns: 1fr; } }
+    .facts .card b { display: block; margin-bottom: 6px; }
+    .facts .card span { font-size: 14px; color: var(--muted); }
+
+    /* ---------- Try ---------- */
+    .quiz { max-width: 640px; margin: 0 auto; }
+    .quiz .q { font-size: 18px; font-weight: 700; margin: 12px 0 14px; }
+    .opts { display: flex; flex-direction: column; gap: 8px; }
+    .opts .btn { min-height: 48px; text-align: left; }
+    .opts .btn.right { border-color: var(--good); background: var(--good-soft); }
+    .opts .btn.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .fb { min-height: 44px; margin-top: 12px; font-size: 14px; color: var(--muted); }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .qdots { display: flex; gap: 6px; justify-content: center; }
+    .qdots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .qdots i.good { background: var(--good); }
+    .qdots i.bad { background: var(--bad); }
+    .qnav { display: flex; justify-content: center; margin-top: 8px; }
+    .qnav .btn { min-height: 44px; }
+    .run { margin-top: 24px; }
+    .run pre { margin: 10px 0 0; padding: 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .run pre .cm { color: var(--muted); }
+
+    /* ---------- Builder's Lens ---------- */
+    .file-chip { display: inline-block; margin-top: 12px; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+    .say { font-size: 20px; font-weight: 700; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 14px; }
+    .flip-back code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 06 Long-running Work</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 06 · Long-running Work</div>
+      <h1>Slow is fine.<br>Silent is not.</h1>
+      <p>Progress, cancellation, timeouts and safe retries for tool calls that take a while.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#progress">📶 Progress</a>
+        <a href="#cancel">🛑 Cancel</a>
+        <a href="#retry">🔁 Retries</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>Scan the whole catalog</h2>
+      <p class="sub">The same <span class="mono">get_stock_level</span> scan of the Lumen &amp; Leaf catalog, twice. Run both and watch what the user sees.</p>
+
+      <div class="two">
+        <div class="card scan-card">
+          <div class="scan-head"><h3>🤐 Without progress</h3><span class="tag bad" id="a-tag">Idle</span></div>
+          <div class="stage" id="a-stage"></div>
+          <div class="mlabel"><span>User patience</span><span id="a-pct"></span></div>
+          <div class="meter" id="a-meter"><i></i></div>
+          <div class="log" id="a-log"></div>
+        </div>
+        <div class="card scan-card">
+          <div class="scan-head"><h3>📶 With progress</h3><span class="tag info" id="b-tag">Idle</span></div>
+          <div class="stage" id="b-stage"></div>
+          <div class="mlabel"><span>Scan progress</span><span id="b-pct"></span></div>
+          <div class="meter" id="b-meter"><i></i></div>
+          <div class="log" id="b-log"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn primary" id="scan-run">▶ Run the scan</button>
+        <button class="btn" id="scan-cancel" disabled>🛑 Cancel the right one</button>
+        <button class="btn" id="scan-reset">↺ Reset</button>
+      </div>
+      <p class="note" style="text-align:center">Simulated: 12 pages of 50 products. Timings are illustrative.</p>
+    </section>
+
+    <!-- ================= PROGRESS ================= -->
+    <section class="section" id="progress">
+      <span class="step-label">💡 Learn</span>
+      <h2>Progress: an opt-in heartbeat</h2>
+      <p class="sub">The client asks for progress with a token. The server may then report against that token. Tap a highlighted field.</p>
+
+      <div class="two">
+        <div class="card">
+          <h3>① Client request</h3>
+          <p class="lead">A normal tool call, plus a token in <span class="mono">_meta</span>.</p>
+<pre class="json">{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "get_stock_level",
+    "arguments": { "threshold": 5 },
+    "_meta": { <span class="tok" data-f="token">"progressToken": "scan-7"</span> }
+  }
+}</pre>
+        </div>
+        <div class="card">
+          <h3>② Server notification</h3>
+          <p class="lead">Sent as many times as the server likes, then the normal result.</p>
+<pre class="json">{
+  "jsonrpc": "2.0",
+  <span class="tok" data-f="method">"method": "notifications/progress"</span>,
+  "params": {
+    "progressToken": "scan-7",
+    <span class="tok" data-f="progress">"progress": 3</span>,
+    <span class="tok" data-f="total">"total": 12</span>,
+    <span class="tok" data-f="message">"message": "Scanned 150 products"</span>
+  }
+}</pre>
+        </div>
+      </div>
+      <div class="card explain" id="explain"></div>
+
+      <div class="rules">
+        <div class="card rule"><div class="ico">🙋</div><b>Client opts in</b><span>No token, no progress. The server may still choose to send none.</span></div>
+        <div class="card rule"><div class="ico">📈</div><b>Always increases</b><span><span class="mono">progress</span> must go up every time, even when the total is unknown.</span></div>
+        <div class="card rule"><div class="ico">❔</div><b>Total is optional</b><span>Omit it when you can't know the size up front. Values may be decimals.</span></div>
+        <div class="card rule"><div class="ico">🏁</div><b>Stops at the end</b><span>No progress after the result. Both sides should rate-limit to avoid floods.</span></div>
+      </div>
+      <p class="note">Source: MCP specification, revision 2026-07-28, "Progress".</p>
+    </section>
+
+    <!-- ================= CANCEL ================= -->
+    <section class="section" id="cancel">
+      <span class="step-label">💡 Learn</span>
+      <h2>Cancellation: stop wasted work</h2>
+      <p class="sub">How the client says "never mind" depends on the transport. Either way, expect races.</p>
+
+      <div class="two">
+        <div class="card">
+          <h3>How the client cancels</h3>
+          <div class="seg" id="tx-seg" style="justify-content:flex-start"></div>
+          <div class="transport-body" id="tx-body"></div>
+        </div>
+        <div class="card race-card">
+          <h3>The race</h3>
+          <div class="seg" id="race-seg" style="justify-content:flex-start"></div>
+          <ol class="race-steps" id="race-steps"></ol>
+          <p class="note" style="margin-bottom:0">The spec requires both sides to handle these races gracefully.</p>
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card">
+          <h3>🧹 What each side should do</h3>
+          <ul class="bullets">
+            <li><b>Server:</b> stop processing, free resources, and send no response.</li>
+            <li><b>Server:</b> may ignore it if the request is unknown, already done, or can't be cancelled.</li>
+            <li><b>Client:</b> ignore any response that arrives after cancelling.</li>
+            <li><b>Both:</b> log the reason. The UI should show that a cancel was requested.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>⏱️ Timeouts are cancellation too</h3>
+          <ul class="bullets">
+            <li>Set a timeout on <b>every</b> request you send.</li>
+            <li>When it fires, cancel the request and stop waiting.</li>
+            <li>You may reset the clock on each progress update…</li>
+            <li>…but always keep a <b>maximum</b>, in case progress never ends.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">Source: MCP specification, revision 2026-07-28, "Cancellation".</p>
+    </section>
+
+    <!-- ================= RETRIES ================= -->
+    <section class="section" id="retry">
+      <span class="step-label">💡 Learn</span>
+      <h2>Retries without double writes</h2>
+      <p class="sub">The network drops the reply to a stock change. Did it happen? Retry with and without an idempotency key.</p>
+
+      <div class="two">
+        <div class="card">
+          <h3>📦 Linen Apron stock</h3>
+          <div class="toggle-row"><div class="seg" id="key-seg"></div></div>
+          <div class="stock"><div><div class="num" id="stock-num">20</div><div class="lbl2" style="text-align:center">units in store</div></div></div>
+          <div class="stack">
+            <button class="btn primary" id="retry-run">▶ Decrement 5, lose the reply, retry</button>
+            <button class="btn" id="retry-other" disabled>Reuse the key, change args</button>
+            <button class="btn" id="retry-reset">↺ Reset</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>What happened</h3>
+          <div class="log" id="retry-log" style="min-height:236px"></div>
+        </div>
+      </div>
+
+      <div class="facts">
+        <div class="card"><b>🔑 A pattern, not protocol</b><span>Idempotency keys are a general distributed-systems practice. In this example the tool accepts an optional <span class="mono">idempotencyKey</span> argument.</span></div>
+        <div class="card"><b>📖 Reads retry, writes don't</b><span>A careful server retries its own upstream reads with backoff. Writes run once, because a timed-out write may have landed.</span></div>
+        <div class="card"><b>🏷️ Hints help the client</b><span><span class="mono">update_stock</span> declares <span class="mono">idempotentHint: false</span>, so a careful client won't blindly retry it.</span></div>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Which mechanism fixes it?</h2>
+      <p class="sub">Six real situations. Pick the tool for the job.</p>
+      <div class="card quiz" id="quiz"></div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="lead">Use the official MCP Inspector (Node 22.19+). Progress and cancel show up best in the web Inspector, which keeps the connection open.</p>
+<pre><span class="cm"># open the Inspector on the Everything reference server</span>
+npx @modelcontextprotocol/inspector npx -y @modelcontextprotocol/server-everything
+
+<span class="cm"># list its tools and look for a slow one that reports progress</span>
+npx @modelcontextprotocol/inspector --cli npx -y @modelcontextprotocol/server-everything --method tools/list
+
+<span class="cm"># your own server: call a slow tool, watch progress, then cancel one</span>
+npx @modelcontextprotocol/inspector --server-url https://store.example.com/mcp --transport http --protocol-era auto</pre>
+        <p class="note">Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">modelcontextprotocol.io/docs/tools/inspector</a>. Write tools should still ask a human first.</p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>Long calls should talk: send <b>progress</b> whenever the client asks for it.</li>
+          <li><b>Cancel</b> cleanly: stop the work, free resources, and expect races.</li>
+          <li>Retry writes only with an <b>idempotency key</b>, or don't retry them at all.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+
+    /* ---------- Explore: catalog scan ---------- */
+    const PAGES = 12, PAGE_SIZE = 50, TICK_MS = 450, GIVE_UP = 7;
+    let timer = null, tick = 0, bStop = 0, bState = "idle", aLog = [], bLog = [];
+    const line = (cls, txt) => `<div class="${cls}">${txt}</div>`;
+    const keep = arr => arr.slice(-7).join("");
+
+    function paint() {
+      const aDone = tick >= PAGES, aGone = tick >= GIVE_UP;
+      $("a-tag").textContent = tick === 0 ? "Idle" : aDone ? "Too late" : aGone ? "User left" : "Waiting";
+      $("a-stage").innerHTML = tick === 0
+        ? `<div><div class="spinner"></div><div class="small" style="margin-top:8px">Ready</div></div>`
+        : aGone
+          ? `<div><div class="big">😩 The user gave up</div><div class="small">${aDone ? "The result arrived anyway, too late." : "The scan is still running somewhere."}</div></div>`
+          : `<div><div class="spinner ${aDone ? "" : "on"}"></div><div class="small" style="margin-top:8px">Working… ${(tick * TICK_MS / 1000).toFixed(1)} s</div></div>`;
+      const patience = tick === 0 ? 100 : Math.max(0, Math.round(100 - tick / GIVE_UP * 100));
+      $("a-meter").className = "meter" + (tick > 0 ? " halt" : "");
+      $("a-meter").firstElementChild.style.width = patience + "%";
+      $("a-pct").textContent = patience + "%";
+      $("a-log").innerHTML = keep(aLog) || line("m", "Nothing sent yet.");
+
+      const pages = bState === "idle" ? 0 : bState === "cancelled" ? bStop : Math.min(tick, PAGES);
+      $("b-tag").textContent = { idle: "Idle", run: "Scanning", done: "Done", cancelled: "Cancelled" }[bState];
+      $("b-tag").className = "tag " + (bState === "cancelled" ? "bad" : bState === "done" ? "good" : "info");
+      $("b-stage").innerHTML = bState === "idle"
+        ? `<div><div class="big">Page 0 / ${PAGES}</div><div class="small">Ready</div></div>`
+        : bState === "cancelled"
+          ? `<div><div class="big">🛑 Stopped at page ${pages}</div><div class="small">No more database reads, no result sent.</div></div>`
+          : `<div><div class="big">Page ${pages} / ${PAGES}</div><div class="small">Scanned ${pages * PAGE_SIZE} products</div></div>`;
+      $("b-meter").className = "meter" + (bState === "done" ? " done" : bState === "cancelled" ? " halt" : "");
+      $("b-meter").firstElementChild.style.width = (pages / PAGES * 100) + "%";
+      $("b-pct").textContent = Math.round(pages / PAGES * 100) + "%";
+      $("b-log").innerHTML = keep(bLog) || line("m", "Nothing sent yet.");
+
+      $("scan-cancel").disabled = bState !== "run";
+      $("scan-run").disabled = timer !== null;
+    }
+
+    function step() {
+      if (!$("a-log")) { clearInterval(timer); timer = null; return; }
+      tick++;
+      if (tick === 1) aLog.push(line("m", "… no news from the server"));
+      if (tick === GIVE_UP) aLog.push(line("x", "✗ user closes the chat"));
+      if (tick === PAGES) aLog.push(line("s", "← result (scannedProducts: 600)"));
+      if (bState === "run") {
+        bLog.push(line("s", `← progress ${tick}/${PAGES} "Scanned ${tick * PAGE_SIZE} products"`));
+        if (tick === PAGES) { bLog.push(line("s", "← result (scannedProducts: 600)")); bState = "done"; }
+      }
+      if (tick >= PAGES) { clearInterval(timer); timer = null; }
+      paint();
+    }
+
+    function resetScan() {
+      clearInterval(timer); timer = null; tick = 0; bStop = 0; bState = "idle"; aLog = []; bLog = [];
+      paint();
+    }
+
+    $("scan-run").onclick = () => {
+      resetScan();
+      aLog.push(line("c", "→ tools/call get_stock_level (no token)"));
+      bLog.push(line("c", '→ tools/call get_stock_level + progressToken "scan-7"'));
+      bState = "run";
+      timer = setInterval(step, TICK_MS);
+      paint();
+    };
+    $("scan-cancel").onclick = () => {
+      if (bState !== "run") return;
+      bState = "cancelled"; bStop = Math.min(tick, PAGES);
+      bLog.push(line("c", "→ client aborts: closes the stream (HTTP)"));
+      bLog.push(line("m", "  server: signal.aborted is true"));
+      bLog.push(line("x", "  server: stops before the next page"));
+      bLog.push(line("m", "  client: ignores anything that arrives late"));
+      paint();
+    };
+    $("scan-reset").onclick = resetScan;
+    resetScan();
+
+    /* ---------- Progress: explain fields ---------- */
+    const FIELDS = {
+      token: ["progressToken", "Chosen by the client: a string or an integer, unique across its active requests. Sending it is how the client asks for progress."],
+      method: ["notifications/progress", "A notification, not a request: it has no id and expects no reply. The server may send zero, one or many."],
+      progress: ["progress", "How far along the work is. It must increase with every notification, even when the total is unknown. Decimals are allowed."],
+      total: ["total", "Optional. Include it when the size is known (here: pages to scan), so the client can draw a real bar instead of a spinner."],
+      message: ["message", "Optional, human-readable status. The spec says it should describe what is happening, so the UI can show it as is."],
+    };
+    let field = "token";
+    function renderField() {
+      document.querySelectorAll("#progress .tok").forEach(t => t.classList.toggle("active", t.dataset.f === field));
+      const [name, text] = FIELDS[field];
+      $("explain").innerHTML = `<h4>${name}</h4><p>${text}</p>`;
+    }
+    $("progress").addEventListener("click", e => {
+      const t = e.target.closest(".tok");
+      if (t) { field = t.dataset.f; renderField(); }
+    });
+    renderField();
+
+    /* ---------- Cancel: transport + race ---------- */
+    const TX = {
+      http: { label: "🌐 Streamable HTTP", body: `
+        <ul class="bullets">
+          <li>Closing the response stream <b>is</b> the cancel signal.</li>
+          <li>The server must treat a client disconnect as cancellation of that request.</li>
+          <li>No <span class="mono">notifications/cancelled</span> message is needed.</li>
+          <li>A client typically does this by aborting the request's <span class="mono">AbortSignal</span>.</li>
+        </ul>
+        <p class="note">Older protocol revisions sent <span class="mono">notifications/cancelled</span> on every transport.</p>` },
+      stdio: { label: "💻 stdio", body: `
+        <p class="lead" style="margin-bottom:8px">There is no per-request stream to close, so the client sends a notification:</p>
+<pre class="json">{
+  "jsonrpc": "2.0",
+  "method": "notifications/cancelled",
+  "params": {
+    "requestId": 7,
+    "reason": "User pressed stop"
+  }
+}</pre>` },
+    };
+    let tx = "http";
+    function renderTx() {
+      $("tx-seg").innerHTML = Object.entries(TX).map(([k, v]) => `<button class="btn ${k === tx ? "active" : ""}" data-tx="${k}">${v.label}</button>`).join("");
+      $("tx-body").innerHTML = TX[tx].body;
+    }
+    $("tx-seg").onclick = e => { const b = e.target.closest("[data-tx]"); if (b) { tx = b.dataset.tx; renderTx(); } };
+    renderTx();
+
+    const RACE = {
+      early: { label: "Cancel at page 4", steps: [
+        ["Client", "Sends the scan request (id 7)."],
+        ["Server", "Scans pages 1 to 4, sending progress."],
+        ["Client", "User cancels: the request is aborted."],
+        ["Server", "Sees the abort before page 5 and stops. Frees resources, sends no result.", "ok"],
+      ] },
+      late: { label: "Cancel too late", steps: [
+        ["Client", "Sends the scan request (id 7)."],
+        ["Server", "Finishes page 12 and sends the result."],
+        ["Client", "User cancels a moment later. The cancel crosses the result in flight.", "warn"],
+        ["Both", "Server ignores a cancel for finished work. Client ignores the late result.", "ok"],
+      ] },
+    };
+    let race = "early";
+    function renderRace() {
+      $("race-seg").innerHTML = Object.entries(RACE).map(([k, v]) => `<button class="btn ${k === race ? "active" : ""}" data-race="${k}">${v.label}</button>`).join("");
+      $("race-steps").innerHTML = RACE[race].steps.map(([who, txt, cls]) => `<li class="${cls || ""}"><span class="who">${who}</span><span>${txt}</span></li>`).join("");
+    }
+    $("race-seg").onclick = e => { const b = e.target.closest("[data-race]"); if (b) { race = b.dataset.race; renderRace(); } };
+    renderRace();
+
+    /* ---------- Retries: idempotency demo ---------- */
+    let useKey = false, stock = 20, ran = false, rLog = [];
+    function renderRetry() {
+      $("key-seg").innerHTML = [[false, "No key"], [true, "🔑 With idempotencyKey"]]
+        .map(([k, l]) => `<button class="btn ${k === useKey ? "active" : ""}" data-key="${k}">${l}</button>`).join("");
+      $("stock-num").textContent = stock;
+      $("stock-num").style.color = stock < 15 ? "var(--bad)" : stock === 15 ? "var(--good)" : "";
+      $("retry-log").innerHTML = rLog.join("") || line("m", "Pick a mode, then run.");
+      $("retry-run").disabled = ran;
+      $("retry-other").disabled = !(ran && useKey);
+    }
+    $("key-seg").onclick = e => {
+      const b = e.target.closest("[data-key]");
+      if (!b) return;
+      useKey = b.dataset.key === "true"; stock = 20; ran = false; rLog = []; renderRetry();
+    };
+    $("retry-run").onclick = () => {
+      ran = true; rLog = [];
+      const k = useKey ? ', idempotencyKey: "k-42"' : "";
+      rLog.push(line("c", `→ update_stock minus 5${k}`));
+      stock -= 5;
+      rLog.push(line("s", "  server: stock 20 → 15"));
+      rLog.push(line("x", "✗ reply lost on the network"));
+      rLog.push(line("c", "→ client retries the same call"));
+      if (useKey) {
+        rLog.push(line("s", "  server: key seen, same args → returns stored result"));
+        rLog.push(line("s", "← 15 units, _meta.idempotentReplay: true"));
+      } else {
+        stock -= 5;
+        rLog.push(line("x", "  server: no key → runs it again: 15 → 10"));
+        rLog.push(line("x", "← 10 units. Stock is now wrong."));
+      }
+      renderRetry();
+    };
+    $("retry-other").onclick = () => {
+      rLog.push(line("c", '→ same key "k-42", but minus 8'));
+      rLog.push(line("x", "← CONFLICT: key already used with different arguments"));
+      $("retry-other").disabled = true;
+      $("retry-log").innerHTML = rLog.join("");
+    };
+    $("retry-reset").onclick = () => { stock = 20; ran = false; rLog = []; renderRetry(); };
+    renderRetry();
+
+    /* ---------- Try: quiz ---------- */
+    const MECH = ["📶 Progress notifications", "🛑 Cancellation", "⏱️ A timeout", "🔑 An idempotency key", "📄 Pagination"];
+    const QUIZ = [
+      { q: "A catalog scan takes 40 seconds and the chat shows only a spinner.", a: 0, why: "The work is fine, the silence isn't. Ask for progress with a token and show the messages." },
+      { q: "Halfway through a 2,000-product scan, the user realizes they typed the wrong threshold.", a: 1, why: "Abort the request. The server checks the signal between pages and stops reading the database." },
+      { q: "A server stops responding to one request. The client is still waiting an hour later.", a: 2, why: "Every request needs a timeout. When it fires, the client cancels and moves on." },
+      { q: "The Wi-Fi drops right after \"decrement stock by 5\". The client doesn't know if it ran.", a: 3, why: "Retrying a write is only safe with a key. The server replays the first result instead of applying it twice." },
+      { q: "search_products would return 5,000 products in one giant reply.", a: 4, why: "Return the data in pages. Give tools page and perPage arguments; MCP's own list methods use cursors." },
+      { q: "Progress keeps arriving, but the scan never finishes because of a bug.", a: 2, why: "Resetting the timeout on progress is allowed, but a maximum timeout must still apply." },
+    ];
+    let qi = 0; const answers = [];
+    function renderQuiz() {
+      const dots = QUIZ.map((_, i) => `<i class="${answers[i] === undefined ? "" : answers[i] ? "good" : "bad"}"></i>`).join("");
+      if (qi >= QUIZ.length) {
+        const score = answers.filter(Boolean).length;
+        $("quiz").innerHTML = `<div class="qdots">${dots}</div>
+          <div class="q" style="text-align:center">${score === QUIZ.length ? "🏆" : score >= 4 ? "👍" : "🌱"} ${score} / ${QUIZ.length}</div>
+          <div class="qnav"><button class="btn primary" data-restart>↺ Try again</button></div>`;
+        return;
+      }
+      const item = QUIZ[qi], done = answers[qi] !== undefined, picked = $("quiz").dataset.picked;
+      $("quiz").innerHTML = `<div class="qdots">${dots}</div>
+        <div class="q">${qi + 1}. ${item.q}</div>
+        <div class="opts">${MECH.map((m, j) => `<button class="btn ${done && j === item.a ? "right" : ""} ${done && String(j) === picked && j !== item.a ? "wrong" : ""}" data-opt="${j}" ${done ? "disabled" : ""}>${m}</button>`).join("")}</div>
+        <div class="fb">${done ? `<b class="${answers[qi] ? "good" : "bad"}">${answers[qi] ? "✓ Correct." : "✗ Not quite."}</b> ${item.why}` : "Tap the best fit."}</div>
+        <div class="qnav">${done ? `<button class="btn primary" data-next>${qi === QUIZ.length - 1 ? "See score" : "Next →"}</button>` : ""}</div>`;
+    }
+    $("quiz").onclick = e => {
+      const o = e.target.closest("[data-opt]");
+      if (o && answers[qi] === undefined) { $("quiz").dataset.picked = o.dataset.opt; answers[qi] = +o.dataset.opt === QUIZ[qi].a; renderQuiz(); return; }
+      if (e.target.closest("[data-next]")) { qi++; $("quiz").dataset.picked = ""; renderQuiz(); return; }
+      if (e.target.closest("[data-restart]")) { qi = 0; answers.length = 0; renderQuiz(); }
+    };
+    renderQuiz();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["📶 Report progress", "<code>const token = ctx.mcpReq._meta?.progressToken; if (token !== undefined) await ctx.mcpReq.notify({ method: 'notifications/progress', params: { progressToken: token, progress: page, total } })</code>", "No token, no progress. And <code>progress</code> must go up every time.", "Call the tool from the web Inspector and watch the progress arrive"],
+      ["🛑 Stop when cancelled", "<code>for (const page of pages) { if (ctx.mcpReq.signal.aborted) return; … }</code>", "Check between units of work, and pass the signal on to database and HTTP calls.", "Cancel mid-call in the web Inspector: no result should arrive"],
+      ["⏱️ Client timeouts", "Pseudocode: <code>callTool(request, { timeout: 30_000, resetTimeoutOnProgress: true, maxTotalTimeout: 120_000 })</code>", "Progress may reset the clock, but always keep a maximum.", "Point a client at a tool that never finishes: it must give up"],
+      ["🔑 Idempotency store", "Pseudocode: <code>key = clientId + tool + idempotencyKey; if (seen(key)) return sameArgs ? stored : conflict();</code>", "Keep successes only, expire them (e.g. after 10 minutes), and reject a reused key with new arguments.", "Send the same write twice with one key: the second is a replay"],
+      ["🏷️ Annotate retries", "<code>annotations: { idempotentHint: false }</code>", "Hints are advice from the server. A client should still never blindly retry a write.", "<code>--method tools/list</code> shows each tool's annotations"],
+      ["📄 Page big results", "Pseudocode: <code>inputSchema: z.object({ page: z.number().int().min(1), perPage: z.number().int().max(100) })</code>", "Return a way to get the next page. Never one giant reply.", "Ask for page 2 and compare it with page 1"],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${watch}</p>
+          <div class="lbl">Verify</div><p>${verify}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(6);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>

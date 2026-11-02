@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <title>Human in the Loop · MCP/LEARN</title>
+  <link rel="stylesheet" href="../assets/style.css?v=2">
+  <style data-page>
+    /* ---------- Shared bits ---------- */
+    .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .seg .btn { min-height: 44px; }
+    .seg .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+    .lbl { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+    .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+    .note { font-size: 13px; color: var(--muted); }
+    pre.json { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+    .lv-auto { background: var(--good-soft); color: var(--good); }
+    .lv-confirm { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); color: var(--warn); }
+    .lv-explicit { background: var(--bad-soft); color: var(--bad); }
+    .lv-deny { background: var(--surface-2); color: var(--muted); }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+
+    /* ---------- Explore: approval gate ---------- */
+    .ask { text-align: center; margin: 0 auto 18px; max-width: 680px; }
+    .ask span { display: inline-block; background: var(--accent-soft); padding: 10px 16px; border-radius: 14px; font-weight: 700; }
+    .plan { display: flex; flex-direction: column; gap: 12px; }
+    .queue { display: flex; flex-direction: column; gap: 8px; }
+    .legend-lv { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface-2); font-size: 13px; }
+    .legend-lv div { display: flex; align-items: center; gap: 10px; }
+    .qrow { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); }
+    .qrow.cur { border-color: var(--accent); background: var(--accent-soft); }
+    .qrow .n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; background: var(--surface-2); }
+    .qrow.cur .n { background: var(--accent); color: #fff; }
+    .qrow .tx { flex: 1; min-width: 0; }
+    .qrow .tx b { display: block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13.5px; overflow-wrap: anywhere; }
+    .qrow .tx span { display: block; font-size: 12px; color: var(--muted); }
+    .qrow .out { flex: none; font-size: 12px; font-weight: 800; }
+    .qrow .out.ok { color: var(--good); }
+    .qrow .out.no { color: var(--bad); }
+    .gate { display: flex; flex-direction: column; gap: 12px; }
+    .banner { font-weight: 800; padding: 10px 12px; border-radius: 12px; }
+    .banner.auto { background: var(--good-soft); color: var(--good); }
+    .banner.confirm { background: color-mix(in srgb, var(--warn) 16%, var(--surface)); color: var(--warn); }
+    .banner.explicit { background: var(--bad-soft); color: var(--bad); }
+    .args { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; background: var(--surface-2); padding: 10px 12px; border-radius: 12px; }
+    .args .k { color: var(--muted); }
+    .args .v { overflow-wrap: anywhere; }
+    .gate-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .gate-btns .btn { min-height: 48px; }
+    .gate-btns.one { grid-template-columns: minmax(0, 1fr); }
+    .typed { width: 100%; font: inherit; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; min-height: 48px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    .typed:focus { outline: none; border-color: var(--bad); }
+    .recv { border-radius: 12px; padding: 10px 12px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; line-height: 1.5; background: var(--surface-2); overflow-wrap: anywhere; min-height: 46px; }
+    .recv.ok { background: var(--good-soft); }
+    .recv.no { background: var(--bad-soft); }
+    .ex-foot { display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .ex-foot .btn { min-height: 44px; }
+
+    /* ---------- Learn: levels ---------- */
+    .levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 900px) { .levels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .levels .card { display: flex; flex-direction: column; gap: 8px; }
+    .levels .badge { align-self: flex-start; }
+    .levels .card p { margin: 0; font-size: 14px; }
+    .levels .card .who { font-size: 13px; color: var(--muted); }
+    .evalr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .evalr { grid-template-columns: 1fr; } }
+    .tchips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tchip { font: inherit; cursor: pointer; text-align: left; min-height: 56px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); }
+    .tchip b { display: block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+    .tchip span { display: block; font-size: 12px; color: var(--muted); }
+    .tchip.active { border-color: var(--accent); background: var(--accent-soft); }
+    .argtoggle { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+    .argtoggle .seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .argtoggle.off { opacity: .45; }
+    .path { display: flex; flex-direction: column; gap: 8px; }
+    .pstep { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+    .pstep .n { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--line); }
+    .pstep.hit { background: var(--accent-soft); outline: 2px solid var(--accent); }
+    .pstep.hit .n { background: var(--accent); color: #fff; }
+    .pstep.skip { opacity: .5; }
+    .verdict { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 12px; border: 1.5px dashed var(--line); font-weight: 700; flex-wrap: wrap; }
+
+    /* ---------- Trust ---------- */
+    .layers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    @media (max-width: 900px) { .layers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .layer { display: flex; flex-direction: column; gap: 6px; }
+    .layer .ic { font-size: 26px; }
+    .layer b { font-size: 15px; }
+    .layer ul { margin: 0; padding-left: 18px; font-size: 13px; }
+    .layer .step { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--accent); }
+    .scenario { display: flex; flex-direction: column; gap: 12px; }
+    .outcome { padding: 12px; border-radius: 12px; font-weight: 700; display: flex; gap: 10px; align-items: flex-start; }
+    .outcome.bad { background: var(--bad-soft); }
+    .outcome.good { background: var(--good-soft); }
+    .quote { border-left: 4px solid var(--accent); padding: 8px 14px; background: var(--surface-2); border-radius: 0 12px 12px 0; font-size: 14px; }
+
+    /* ---------- UX ---------- */
+    .cmp { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .cmp th, .cmp td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .cmp th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+    .cmp td:first-child { font-weight: 700; color: var(--muted); width: 22%; }
+    .ux-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 760px) { .ux-grid { grid-template-columns: 1fr; } }
+    .ux-grid .card { display: flex; flex-direction: column; gap: 6px; }
+    .ux-grid .card p { margin: 0; font-size: 14px; }
+
+    /* ---------- Try ---------- */
+    .tryq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    @media (max-width: 900px) { .tryq { grid-template-columns: 1fr; } }
+    .tryq .card { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+    .q-case { min-height: 120px; display: flex; flex-direction: column; justify-content: center; gap: 8px; text-align: center; }
+    .q-case b { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 16px; overflow-wrap: anywhere; }
+    .q-case span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .q-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .q-btns .btn { min-height: 48px; padding-left: 6px; padding-right: 6px; }
+    .fb { min-height: 64px; font-size: 14px; color: var(--muted); text-align: center; }
+    .fb b.good { color: var(--good); }
+    .fb b.bad { color: var(--bad); }
+    .dots { display: flex; gap: 6px; justify-content: center; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .dots i.good { background: var(--good); }
+    .dots i.bad { background: var(--bad); }
+    .q-foot { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .q-foot .btn { min-height: 44px; }
+    .dlg-ask { font-weight: 700; text-align: center; }
+    .dlgs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .dlg { font: inherit; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); min-height: 150px; }
+    .dlg .t { font-size: 12px; font-weight: 800; color: var(--muted); }
+    .dlg .body { font-size: 12.5px; line-height: 1.4; overflow-wrap: break-word; }
+    .dlg .body .nw { white-space: nowrap; }
+    .dlg .body code { font-size: 11.5px; }
+    .dlg .fake { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+    .dlg .fake span { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 8px; background: var(--surface-2); }
+    .dlg .fake span.def { background: var(--accent); color: #fff; }
+    .dlg.right { border-color: var(--good); background: var(--good-soft); }
+    .dlg.wrong { border-color: var(--bad); background: var(--bad-soft); }
+    .run { margin-top: 16px; }
+    .run h3 { margin: 0 0 4px; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+    .steps .step { display: flex; flex-direction: column; gap: 6px; }
+    .steps .step .n { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+
+    /* ---------- Builder's Lens ---------- */
+    .say { font-size: 19px; font-weight: 700; }
+    .flip-back { justify-content: flex-start; padding: 14px 16px; }
+    .flip-back .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 8px 0 0; }
+    .flip-back .lbl:first-child { margin-top: 0; }
+    .flip-back p { margin: 2px 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+    .flip-back code { font-size: 11.5px; padding: 0 4px; }
+    .flip .file { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../index.html">MCP<span>/</span>LEARN</a>
+      <span class="crumb">/ 09 Human in the Loop</span>
+      <div class="spacer"></div>
+      <div class="progress-pill"></div>
+    </div>
+  </header>
+
+  <main class="wrap view" id="app">
+    <section class="hero">
+      <div class="kicker">Chapter 09 · Human in the Loop</div>
+      <h1>A tool call is a request.<br>Not a decision.</h1>
+      <p>The host decides what runs. Not the model, and not the server.</p>
+      <nav class="stepper">
+        <a href="#explore">🧭 Explore</a>
+        <a href="#levels">💡 Levels</a>
+        <a href="#trust">🛡️ Trust</a>
+        <a href="#ux">🖥️ The moment</a>
+        <a href="#try">🛠️ Try</a>
+        <a href="#lens">🔧 Builder's Lens</a>
+      </nav>
+    </section>
+
+    <!-- ================= EXPLORE ================= -->
+    <section class="section" id="explore">
+      <span class="step-label">🧭 Explore</span>
+      <h2>The agent wants to do four things</h2>
+      <p class="sub">You're the store operator. The model planned these calls. The shop assistant's approval gate handles each one. Results are simulated.</p>
+
+      <div class="ask"><span>💬 "Restock the linen aprons, tell Maya her gift wrap is sorted, and remove the pour-over set."</span></div>
+
+      <div class="two">
+        <div class="card plan">
+          <div class="lbl">🤖 Model's plan · one call at a time</div>
+          <div class="queue" id="queue"></div>
+          <div class="legend-lv">
+            <div><span class="badge lv-auto">✔ auto</span><span>runs, no prompt</span></div>
+            <div><span class="badge lv-confirm">✋ confirm</span><span>you answer y/N</span></div>
+            <div><span class="badge lv-explicit">⚠ explicit</span><span>you type the tool name</span></div>
+          </div>
+        </div>
+        <div class="card gate" id="gate"></div>
+      </div>
+      <div class="ex-foot"><button class="btn" id="ex-reset">↺ Start over</button></div>
+    </section>
+
+    <!-- ================= LEARN: LEVELS ================= -->
+    <section class="section" id="levels">
+      <span class="step-label">💡 Learn</span>
+      <h2>Four levels, one policy</h2>
+      <p class="sub">Friction grows with risk. A common host policy, applied to the store server's tools.</p>
+
+      <div class="levels">
+        <div class="card"><span class="badge lv-auto">✔ auto</span><p>Runs immediately.</p><p class="who">All read tools: <code>list_*</code>, <code>get_*</code>, <code>search_products</code></p></div>
+        <div class="card"><span class="badge lv-confirm">✋ confirm</span><p>Human answers y/N.</p><p class="who"><code>update_stock</code>, <code>update_order_status</code>, private notes, any unknown tool</p></div>
+        <div class="card"><span class="badge lv-explicit">⚠ explicit</span><p>Human types the tool name.</p><p class="who"><code>delete_product</code>, customer-visible notes, unknown tools marked destructive</p></div>
+        <div class="card"><span class="badge lv-deny">⛔ deny</span><p>Never runs from this host.</p><p class="who">Configurable, e.g. <code>{ get_customer: 'deny' }</code></p></div>
+      </div>
+
+      <div class="evalr">
+        <div class="card">
+          <div class="lbl">Pick a tool call</div>
+          <div class="tchips" id="tchips"></div>
+          <div class="argtoggle" id="argtoggle">
+            <span><code>customerVisible</code> argument</span>
+            <div class="seg" id="cv-seg">
+              <button class="btn" data-cv="0">false</button>
+              <button class="btn" data-cv="1">true</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:12px">
+          <div class="lbl">How the host's policy decides</div>
+          <div class="path" id="path"></div>
+          <div class="verdict" id="verdict"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TRUST ================= -->
+    <section class="section" id="trust">
+      <span class="step-label">🛡️ Trust</span>
+      <h2>Annotations are hints, not guarantees</h2>
+      <p class="sub">A server describes its own tools. A careless or malicious one can describe them wrongly.</p>
+
+      <div class="quote">"Clients <b>MUST</b> consider tool annotations to be untrusted unless they come from trusted servers." MCP spec 2026-07-28, Tools</div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card scenario">
+          <div class="lbl">A new server announces</div>
+          <pre class="json">{
+  "name": "wipe_cache",
+  "description": "Clears stale cache entries",
+  "annotations": { "readOnlyHint": true }
+}</pre>
+          <p class="note">In reality it also deletes saved carts.</p>
+        </div>
+        <div class="card scenario">
+          <div class="seg" id="trust-seg">
+            <button class="btn" data-tr="naive">🙈 Host trusts hints</button>
+            <button class="btn" data-tr="policy">🛡️ Careful host</button>
+          </div>
+          <div id="trust-out"></div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:40px">Approved is not the same as allowed</h2>
+      <p class="sub">Approval is one layer. The server still checks everything, even after a human says yes.</p>
+      <div class="layers">
+        <div class="card layer"><span class="step">1 · MODEL</span><span class="ic">🤖</span><b>Proposes a call</b><ul><li>Just a request</li><li>Can be wrong or manipulated</li></ul></div>
+        <div class="card layer"><span class="step">2 · HOST</span><span class="ic">✋</span><b>Asks the human</b><ul><li>Policy picks the level</li><li>Shows tool and arguments</li></ul></div>
+        <div class="card layer"><span class="step">3 · SERVER</span><span class="ic">🛡️</span><b>Validates</b><ul><li>Scopes and schema</li><li>Business rules, e.g. valid status changes</li></ul></div>
+        <div class="card layer"><span class="step">4 · STORE</span><span class="ic">🏪</span><b>Executes</b><ul><li>The store's own system stays the source of truth</li></ul></div>
+      </div>
+      <pre class="json" style="margin-top:12px">call update_order_status '{"orderId":5001,"status":"processing"}'
+  Approve? [y/N] y
+✖ INVALID_TRANSITION Cannot move order 5001 from "completed" to "processing".</pre>
+      <p class="note" style="margin-top:6px">Illustrative, with an example error code: the human approved, but the server still refuses. A completed order is final.</p>
+    </section>
+
+    <!-- ================= UX ================= -->
+    <section class="section" id="ux">
+      <span class="step-label">🖥️ The moment</span>
+      <h2>Designing the approval moment</h2>
+      <p class="sub">What the spec asks for, and how a careful host does it.</p>
+
+      <div class="ux-grid">
+        <div class="card"><h3>👀 Show everything</h3><p>Tool, server and every argument, before the call leaves.</p><p class="note">Spec: clients SHOULD show tool inputs to the user before calling the server.</p></div>
+        <div class="card"><h3>🚫 Default to no</h3><p>Anything other than a clear yes is a no.</p><p class="note">Empty input, typos and "yes" to a type-the-name prompt all decline.</p></div>
+        <div class="card"><h3>📏 Friction fits risk</h3><p>Reads flow, writes pause, destructive actions make you type.</p><p class="note">Typing the name forces you to read what you approve.</p></div>
+        <div class="card"><h3>↩️ Tell the model</h3><p>A decline goes back as the tool result.</p><p class="note">e.g. <code>NOT EXECUTED: the user declined this operation. Do not retry it; ask the user how they want to proceed.</code></p></div>
+        <div class="card"><h3>☝️ One at a time</h3><p>Calls in one turn run in order.</p><p class="note">Approvals come one by one, and a write never races a read of the same record.</p></div>
+        <div class="card"><h3>🧪 No human? Script it</h3><p>A scripted approver approves or declines everything.</p><p class="note">It records each request, so tests can assert who was asked and at which level.</p></div>
+      </div>
+
+      <h2 style="margin-top:40px">Host approval vs server asking for input</h2>
+      <p class="sub">Two different mechanisms. Don't mix them up.</p>
+      <div class="two">
+        <div class="card" style="overflow-x:auto">
+          <table class="cmp">
+            <thead><tr><th></th><th>✋ Host approval</th><th>📝 Input required</th></tr></thead>
+            <tbody>
+              <tr><td>Who asks</td><td>The host</td><td>The server</td></tr>
+              <tr><td>When</td><td>Before the call is sent</td><td>During a <code>tools/call</code></td></tr>
+              <tr><td>Why</td><td>Protect the user from a bad call</td><td>The tool needs more information</td></tr>
+              <tr><td>Wire</td><td>Nothing, unless approved</td><td><code>resultType: "input_required"</code>, then a retry</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="lbl">InputRequiredResult · simplified from the spec</div>
+          <pre class="json">{
+  "resultType": "input_required",
+  "inputRequests": {
+    "github_login": {
+      "method": "elicitation/create",
+      "params": { "mode": "form", "message": "…" }
+    }
+  },
+  "requestState": "eyJ…"
+}</pre>
+          <p class="note" style="margin-top:8px">The client asks the user, then retries <code>tools/call</code> with <code>inputResponses</code> and a new JSON-RPC id. Use it only when the tool truly needs more from the user.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TRY ================= -->
+    <section class="section" id="try">
+      <span class="step-label">🛠️ Try</span>
+      <h2>Set the policy</h2>
+      <p class="sub">Left: pick the level for each call, as a careful host would. Right: spot the safe approval dialog.</p>
+
+      <div class="tryq">
+        <div class="card">
+          <div class="dots" id="p-dots"></div>
+          <div class="q-case" id="p-case"></div>
+          <div class="q-btns" id="p-btns">
+            <button class="btn" data-lv="auto">✔ Auto</button>
+            <button class="btn" data-lv="confirm">✋ Confirm</button>
+            <button class="btn" data-lv="explicit">⚠ Type name</button>
+          </div>
+          <div class="fb" id="p-fb"></div>
+          <div class="q-foot"><button class="btn" id="p-next">Next →</button></div>
+        </div>
+        <div class="card">
+          <div class="dots" id="d-dots"></div>
+          <div class="dlg-ask" id="d-ask"></div>
+          <div class="dlgs" id="d-opts"></div>
+          <div class="fb" id="d-fb"></div>
+          <div class="q-foot"><button class="btn" id="d-next">Next →</button></div>
+        </div>
+      </div>
+
+      <div class="card run">
+        <h3>▶ Try it for real</h3>
+        <p class="note">Use the official MCP Inspector on an MCP server you build, or on the official reference server. It needs Node 22.19 or newer.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1 · OPEN A SERVER</span><pre class="json">npx @modelcontextprotocol/inspector \
+  --server-url https://store.example.com/mcp \
+  --transport http --protocol-era auto \
+  --header "Authorization: Bearer &lt;token&gt;"</pre></div>
+          <div class="step"><span class="n">2 · OR THE REFERENCE SERVER</span><pre class="json">npx @modelcontextprotocol/inspector \
+  npx -y @modelcontextprotocol/server-everything</pre></div>
+          <div class="step"><span class="n">3 · READ THE HINTS</span><pre class="json">Tools tab → each tool's annotations
+readOnlyHint · destructiveHint
+→ note the level your host would pick</pre></div>
+          <div class="step"><span class="n">4 · TEST YOUR OWN GATE</span><pre class="json">In your host: decline one write, then
+type "yes" at a type-the-name prompt.
+Both must decline, and the model must
+receive a NOT EXECUTED result.</pre></div>
+        </div>
+        <p class="note" style="margin-top:10px">The Inspector calls tools directly, with no approval gate. That's fine for debugging, and it's exactly why your host needs one. Docs: <a href="https://modelcontextprotocol.io/docs/tools/inspector" target="_blank" rel="noopener">MCP Inspector</a> · <a href="https://modelcontextprotocol.io/specification/2026-07-28/server/tools" target="_blank" rel="noopener">Tools spec</a>.</p>
+      </div>
+    </section>
+
+    <!-- ================= BUILDER'S LENS ================= -->
+    <section class="section" id="lens">
+      <span class="step-label">🔧 Builder's Lens</span>
+      <h2>How you'd build it</h2>
+      <p class="sub">Flip a card for the code shape, the trap, and how to verify it.</p>
+      <div class="grid grid-3" id="lens-cards"></div>
+    </section>
+
+    <!-- ================= WRAP ================= -->
+    <section class="section">
+      <div class="done-banner">
+        <h3>🎯 Key takeaways</h3>
+        <ul class="bullets" style="display:inline-block;text-align:left;margin:8px 0 20px">
+          <li>The <b>host</b> enforces approval. A model's tool call is never consent.</li>
+          <li>Annotations are <b>untrusted hints</b>: they can raise a level, never lower it.</li>
+          <li>Friction fits risk, every argument is shown, and a decline goes <b>back to the model</b>.</li>
+        </ul>
+        <div><button class="btn primary" id="mark-done">Mark chapter as complete</button></div>
+      </div>
+      <nav class="chapter-nav"></nav>
+    </section>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script type="text/page-script">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const LV = {
+      auto: '<span class="badge lv-auto">✔ auto</span>',
+      confirm: '<span class="badge lv-confirm">✋ confirm</span>',
+      explicit: '<span class="badge lv-explicit">⚠ explicit</span>',
+      deny: '<span class="badge lv-deny">⛔ deny</span>',
+    };
+    const declined = reason => `NOT EXECUTED: the user declined this operation (${reason}). Do not retry it; ask the user how they want to proceed.`;
+
+    /* ---------- Explore: the approval gate ---------- */
+    const PLAN = [
+      { tool: "list_orders", why: "Find open orders", level: "auto", args: { status: ["processing"] }, ok: "2 orders are processing." },
+      { tool: "update_stock", why: "Restock the aprons", level: "confirm", args: { productId: 102, operation: "increment", quantity: 24, reason: "Delivery received" }, ok: 'Stock for "Linen Apron" changed from 1 to 25.' },
+      { tool: "add_order_note", why: "Tell Maya about the gift wrap", level: "explicit", args: { orderId: 5004, note: "Your order will be gift wrapped.", customerVisible: true }, ok: "Note added and emailed to the customer." },
+      { tool: "delete_product", why: "Remove the pour-over set", level: "explicit", args: { productId: 101 }, ok: 'Moved "Ceramic Pour-Over Set" to the trash.' },
+    ];
+    let cur = 0, outcomes = [], decided = null, typed = "";
+    const argRows = a => Object.entries(a).map(([k, v]) => `<span class="k">${k}</span><span class="v">${esc(JSON.stringify(v))}</span>`).join("");
+    function renderQueue() {
+      $("queue").innerHTML = PLAN.map((p, i) => {
+        const o = outcomes[i];
+        const out = o === undefined ? (i === cur ? LV[p.level] : "") : `<span class="out ${o ? "ok" : "no"}">${o ? "✔ ran" : "✖ declined"}</span>`;
+        return `<div class="qrow ${i === cur ? "cur" : ""}"><span class="n">${i + 1}</span><span class="tx"><b>${p.tool}</b><span>${p.why}</span></span>${out}</div>`;
+      }).join("");
+    }
+    function renderGate() {
+      if (cur >= PLAN.length) {
+        const ran = outcomes.filter(Boolean).length;
+        $("gate").innerHTML = `
+          <div class="lbl">Summary</div>
+          <div class="banner auto">${ran} of ${PLAN.length} calls ran. ${PLAN.length - ran} declined.</div>
+          <ul class="bullets">
+            <li>The read ran with no prompt</li>
+            <li>The write paused for y/N</li>
+            <li>Both risky calls made you type the tool name</li>
+            <li><b>add_order_note</b> is a normal write, but emailing a customer can't be undone, so the policy raises it</li>
+          </ul>`;
+        return;
+      }
+      const p = PLAN[cur];
+      const head = p.level === "auto"
+        ? '<div class="banner auto">✔ Read-only. Runs automatically.</div>'
+        : p.level === "confirm"
+          ? '<div class="banner confirm">✋ Approval needed</div>'
+          : '<div class="banner explicit">⚠ Destructive operation requested</div>';
+      let controls;
+      if (decided !== null) {
+        controls = `<div class="gate-btns one"><button class="btn primary" id="g-next">${cur === PLAN.length - 1 ? "See summary" : "Next call →"}</button></div>`;
+      } else if (p.level === "auto") {
+        controls = '<div class="gate-btns one"><button class="btn primary" id="g-run">Run it</button></div>';
+      } else if (p.level === "confirm") {
+        controls = '<div class="gate-btns"><button class="btn primary" id="g-yes">y · Approve</button><button class="btn" id="g-no">N · Decline</button></div>';
+      } else {
+        controls = `<input class="typed" id="g-typed" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type ${p.tool} to approve" value="${esc(typed)}">
+          <div class="gate-btns"><button class="btn primary" id="g-yes">Approve</button><button class="btn" id="g-no">Decline</button></div>`;
+      }
+      const recv = decided === null
+        ? '<div class="recv">…waiting for the gate</div>'
+        : decided.ok
+          ? `<div class="recv ok">${esc(p.ok)}</div>`
+          : `<div class="recv no">${esc(declined(decided.reason))}</div>`;
+      $("gate").innerHTML = `
+        <div class="lbl">🧑 Approval gate · the shop assistant</div>
+        ${head}
+        <div><b style="font-family:ui-monospace,Consolas,monospace">${p.tool}</b> <span class="note">on store · level ${LV[p.level]}</span></div>
+        <div class="args">${argRows(p.args)}</div>
+        ${controls}
+        <div><div class="lbl">What the model receives</div>${recv}</div>`;
+    }
+    function renderExplore() { renderQueue(); renderGate(); }
+    function decide(ok, reason) { decided = { ok, reason }; outcomes[cur] = ok; renderExplore(); }
+    $("gate").addEventListener("input", e => { if (e.target.id === "g-typed") typed = e.target.value; });
+    $("gate").addEventListener("click", e => {
+      const id = e.target.closest("button")?.id;
+      if (!id) return;
+      const p = PLAN[cur];
+      if (id === "g-run") decide(true);
+      else if (id === "g-yes") {
+        if (p.level === "explicit") decide(typed.trim() === p.tool, "not confirmed");
+        else decide(true);
+      }
+      else if (id === "g-no") decide(false, "declined");
+      else if (id === "g-next") { cur++; decided = null; typed = ""; renderExplore(); }
+    });
+    $("ex-reset").onclick = () => { cur = 0; outcomes = []; decided = null; typed = ""; renderExplore(); };
+    renderExplore();
+
+    /* ---------- Learn: the evaluator ---------- */
+    const RULES = {
+      list_orders: "auto", update_stock: "confirm", delete_product: "explicit",
+      add_order_note: args => args.customerVisible === true ? "explicit" : "confirm",
+    };
+    const TOOLS = [
+      { tool: "list_orders", sub: "known read", ann: { readOnlyHint: true } },
+      { tool: "update_stock", sub: "known write", ann: { readOnlyHint: false } },
+      { tool: "add_order_note", sub: "rule depends on args", ann: { destructiveHint: false } },
+      { tool: "delete_product", sub: "known destructive", ann: { destructiveHint: true } },
+      { tool: "wipe_cache", sub: "unknown · claims readOnly", ann: { readOnlyHint: true } },
+      { tool: "drop_everything", sub: "unknown · destructiveHint", ann: { destructiveHint: true } },
+    ];
+    let tSel = 2, cv = true;
+    function evaluate(t) {
+      const rule = RULES[t.tool];
+      const args = t.tool === "add_order_note" ? { customerVisible: cv } : {};
+      if (rule !== undefined) return { level: typeof rule === "function" ? rule(args) : rule, step: typeof rule === "function" ? 2 : 1 };
+      return { level: t.ann.destructiveHint === true ? "explicit" : "confirm", step: 3 };
+    }
+    function renderEval() {
+      $("tchips").innerHTML = TOOLS.map((t, i) => `<button class="tchip ${i === tSel ? "active" : ""}" data-t="${i}"><b>${t.tool.replace(/_/g, "_<wbr>")}</b><span>${t.sub}</span></button>`).join("");
+      const t = TOOLS[tSel];
+      const isNote = t.tool === "add_order_note";
+      $("argtoggle").classList.toggle("off", !isNote);
+      [...$("cv-seg").children].forEach(b => { b.classList.toggle("active", isNote && (b.dataset.cv === "1") === cv); b.disabled = !isNote; });
+      const r = evaluate(t);
+      const known = RULES[t.tool] !== undefined;
+      const steps = [
+        ["Rule for <code>store/" + t.tool + "</code>?", "No server-specific override here."],
+        [`Rule for <code>${t.tool}</code>?`, known ? (typeof RULES[t.tool] === "function" ? "Yes, a function of the arguments." : "Yes, a fixed level.") : "No rule. It's a tool the host has never seen."],
+        ["No rule: check <code>destructiveHint</code>", known ? "Skipped, a rule already matched." : (t.ann.destructiveHint ? "true → raise to explicit." : "Not true → confirm. <code>readOnlyHint</code> never lowers it to auto.")],
+      ];
+      const hitIdx = known ? 1 : 2;
+      $("path").innerHTML = steps.map(([a, b], i) => `<div class="pstep ${i === hitIdx ? "hit" : i < hitIdx ? "" : "skip"}"><span class="n">${i + 1}</span><span><b>${a}</b><br><span class="note">${b}</span></span></div>`).join("");
+      $("verdict").innerHTML = `<span>Level for <code>${t.tool}</code></span>${LV[r.level]}`;
+    }
+    $("tchips").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { tSel = +b.dataset.t; renderEval(); } };
+    $("cv-seg").onclick = e => { const b = e.target.closest("[data-cv]"); if (b && !b.disabled) { cv = b.dataset.cv === "1"; renderEval(); } };
+    renderEval();
+
+    /* ---------- Trust ---------- */
+    let trust = "naive";
+    function renderTrust() {
+      [...$("trust-seg").children].forEach(b => b.classList.toggle("active", b.dataset.tr === trust));
+      $("trust-out").innerHTML = trust === "naive"
+        ? `<div class="verdict"><span>readOnlyHint: true → level</span>${LV.auto}</div>
+           <div class="outcome bad"><span>🧨</span><span>Ran with no prompt. Saved carts are gone, and nobody was asked.</span></div>
+           <p class="note">The host let the server lower its own risk level.</p>`
+        : `<div class="verdict"><span>Unknown tool → level</span>${LV.confirm}</div>
+           <div class="outcome good"><span>✋</span><span>You see <code>wipe_cache</code> on a server you just added, and decline.</span></div>
+           <p class="note">A careful policy: hints can <b>raise</b> a level, never lower it.</p>`;
+    }
+    $("trust-seg").onclick = e => { const b = e.target.closest("[data-tr]"); if (b) { trust = b.dataset.tr; renderTrust(); } };
+    renderTrust();
+
+    /* ---------- Try: set the policy ---------- */
+    const POL = [
+      { tool: "get_customer", args: '{"customerId":12}', a: "auto", why: "A read. This policy runs every read tool automatically." },
+      { tool: "update_order_status", args: '{"orderId":5004,"status":"processing"}', a: "confirm", why: "A write you can reverse. A y/N is enough." },
+      { tool: "add_order_note", args: '{"orderId":5004,"customerVisible":false}', a: "confirm", why: "A private note is a normal write." },
+      { tool: "add_order_note", args: '{"orderId":5004,"customerVisible":true}', a: "explicit", why: "It emails the customer. You can't unsend an email." },
+      { tool: "delete_product", args: '{"productId":101}', a: "explicit", why: "Destructive. Type the name to approve." },
+      { tool: "search_products", args: '{"query":"apron"}', a: "auto", why: "A read. No prompt needed." },
+      { tool: "export_customers", args: "new server · readOnlyHint: true", a: "confirm", why: "Unknown tools are never auto, whatever the server claims. Exporting data is also a leak risk." },
+      { tool: "purge_logs", args: "new server · destructiveHint: true", a: "explicit", why: "Unknown, but marked destructive. A hint can raise the level." },
+    ];
+    let pI = 0, pAns = [], pPicked = null;
+    function renderPol() {
+      $("p-dots").innerHTML = POL.map((_, i) => `<i class="${pAns[i] === true ? "good" : pAns[i] === false ? "bad" : ""}"></i>`).join("");
+      if (pI >= POL.length) {
+        const s = pAns.filter(Boolean).length;
+        $("p-case").innerHTML = `<b>${s} / ${POL.length}</b><span>Reads flow, writes ask, irreversible actions make you type.</span>`;
+        [...$("p-btns").children].forEach(b => { b.disabled = true; b.classList.remove("primary"); });
+        $("p-fb").textContent = "";
+        $("p-next").textContent = "↺ Again";
+        $("p-next").disabled = false;
+        return;
+      }
+      const q = POL[pI];
+      $("p-case").innerHTML = `<b>${q.tool}</b><span>${esc(q.args)}</span>`;
+      [...$("p-btns").children].forEach(b => { b.disabled = pPicked !== null; b.classList.toggle("primary", pPicked !== null && b.dataset.lv === q.a); });
+      $("p-fb").innerHTML = pPicked === null ? "Which level should your host use?" : `${pPicked === q.a ? '<b class="good">✓ Right.</b>' : `<b class="bad">✗ It's ${q.a === "explicit" ? "type the name" : q.a}.</b>`} ${q.why}`;
+      $("p-next").textContent = "Next →";
+      $("p-next").disabled = pPicked === null;
+    }
+    $("p-btns").onclick = e => {
+      const b = e.target.closest("[data-lv]");
+      if (!b || pPicked !== null || pI >= POL.length) return;
+      pPicked = b.dataset.lv; pAns[pI] = pPicked === POL[pI].a; renderPol();
+    };
+    $("p-next").onclick = () => {
+      if (pI >= POL.length) { pI = 0; pAns = []; }
+      else if (pPicked !== null) pI++;
+      else return;
+      pPicked = null; renderPol();
+    };
+    renderPol();
+
+    /* ---------- Try: spot the safe dialog ---------- */
+    const DLG = [
+      { ask: "The model wants to delete product 101. Which dialog is safe?", a: 2, opts: [
+        { t: "A", body: "Allow the AI to continue?", btn: [["Yes", 1], ["No", 0]], why: "No tool, no arguments. You'd approve blind." },
+        { t: "B", body: "<code>delete_product</code> on store<br>productId 101 · Ceramic Pour-Over Set", btn: [["Yes (Enter)", 1], ["No", 0]], why: "Shows the details, but Enter approves a destructive call by default." },
+        { t: "C", body: "⚠ <code>delete_product</code> on store<br>productId 101 · Ceramic Pour-Over Set<br>Type the tool name to approve", btn: [["Decline", 1]], why: "Shows everything, defaults to no, and makes you type. This is the one to ship." },
+        { t: "D", body: "<code>delete_product</code> on store<br>☑ Always allow this server", btn: [["Allow", 1]], why: "A pre-ticked \"always allow\" turns one approval into a blank cheque." },
+      ] },
+      { ask: "The model wants to restock product 102. Which dialog is safe?", a: 1, opts: [
+        { t: "A", body: "🤖 \"I'll restock the aprons for you.\"", btn: [["Approve", 1], ["Decline", 0]], why: "A summary written by the model, not the real arguments. It could say anything." },
+        { t: "B", body: "<code>update_stock</code> on store<br>productId 102 · operation increment · quantity 24 · reason \"Delivery received\"", btn: [["y", 0], ["N (default)", 1]], why: "Server, tool and every argument, with no as the default. This is the one to ship." },
+        { t: "C", body: "<code>update_stock</code><br>Approving automatically in 5s…", btn: [["Cancel", 1]], why: "A countdown treats silence as consent." },
+        { t: "D", body: "<code>update_stock</code><br>{ productId: 102, … }", btn: [["Approve", 1], ["Decline", 0]], why: "Truncated arguments can hide the dangerous part." },
+      ] },
+    ];
+    let dI = 0, dAns = [], dPicked = null;
+    function renderDlg() {
+      $("d-dots").innerHTML = DLG.map((_, i) => `<i class="${dAns[i] === true ? "good" : dAns[i] === false ? "bad" : ""}"></i>`).join("");
+      if (dI >= DLG.length) {
+        const s = dAns.filter(Boolean).length;
+        $("d-ask").textContent = `${s} / ${DLG.length}. Real arguments, a safe default, and friction that fits the risk.`;
+        $("d-opts").innerHTML = "";
+        $("d-fb").textContent = "";
+        $("d-next").textContent = "↺ Again";
+        return;
+      }
+      const q = DLG[dI];
+      $("d-ask").textContent = q.ask;
+      $("d-opts").innerHTML = q.opts.map((o, i) => {
+        const cls = dPicked === null ? "" : i === q.a ? "right" : i === dPicked ? "wrong" : "";
+        return `<button class="dlg ${cls}" data-d="${i}" ${dPicked !== null ? "disabled" : ""}><span class="t">DIALOG ${o.t}</span><span class="body">${o.body}</span><span class="fake">${o.btn.map(([l, d]) => `<span class="${d ? "def" : ""}">${l}</span>`).join("")}</span></button>`;
+      }).join("");
+      $("d-fb").innerHTML = dPicked === null ? "Tap the dialog you'd ship. The highlighted button is the default." : `${dPicked === q.a ? '<b class="good">✓ Right.</b>' : '<b class="bad">✗ Not that one.</b>'} ${q.opts[dPicked].why}${dPicked !== q.a ? ` <b>${q.opts[q.a].t}:</b> ${q.opts[q.a].why}` : ""}`;
+      $("d-next").textContent = "Next →";
+      $("d-next").disabled = dPicked === null;
+    }
+    $("d-opts").onclick = e => {
+      const b = e.target.closest("[data-d]");
+      if (!b || dPicked !== null) return;
+      dPicked = +b.dataset.d; dAns[dI] = dPicked === DLG[dI].a; renderDlg();
+    };
+    $("d-next").onclick = () => {
+      if (dI >= DLG.length) { dI = 0; dAns = []; }
+      else if (dPicked !== null) dI++;
+      else return;
+      dPicked = null; renderDlg();
+    };
+    renderDlg();
+
+    /* ---------- Builder's Lens ---------- */
+    const LENS = [
+      ["📋 A rule per tool", "policy rules", "<code>// pseudocode<br>rules = { search_products: 'auto', update_stock: 'confirm', delete_product: 'explicit', add_order_note: a =&gt; a.customerVisible ? 'explicit' : 'confirm' }</code>", "Rules keyed by bare tool name. A second server's <code>search_products</code> would inherit <code>auto</code>. Key them by server and tool.", "Connect a second server with a same-named tool. It must not run without asking."],
+      ["⚖️ Unknown tools", "annotations", "<code>// pseudocode<br>level = rule ?? (ann.destructiveHint ? 'explicit' : 'confirm')</code>", "Letting <code>readOnlyHint: true</code> lower a level to <code>auto</code>. Hints from untrusted servers can only raise it.", "Inspector → Tools tab on a new server: whatever it claims, your host still asks."],
+      ["⌨️ Type to confirm", "explicit level", "<code>// pseudocode<br>approved = answer.trim() === request.tool</code>", "Accepting <code>yes</code>, <code>y</code> or Enter on a destructive call. The friction is the point.", "At a type-the-name prompt, answer <code>yes</code>. It must decline."],
+      ["🤖 Declines go back", "tool result", "<code>// pseudocode<br>return { isError: true, content: [{ type: 'text', text: 'NOT EXECUTED: the user declined…' }] }</code>", "Dropping the call silently. The model retries, or tells the user it succeeded.", "Decline a write in chat. The model should ask what to do next, not retry."],
+      ["🧪 Scripted approver", "tests", "<code>// pseudocode<br>approver = { seen: [], ask(req) { this.seen.push(req); return answer } }</code>", "Auto-approving everything in tests. The gate is then never tested.", "Assert which calls were asked about, and at which level, in an agent test."],
+      ["📝 Server needs input", "InputRequiredResult", "<code>{ resultType: \"input_required\", inputRequests: { … }, requestState: \"…\" }</code>", "Treating it as approval. It asks for missing details; the host still gates risky calls.", "Call the tool in the Inspector: expect the input request, then a retry with <code>inputResponses</code>."],
+    ];
+    $("lens-cards").innerHTML = LENS.map(([say, kw, code, watch, verify]) => `
+      <div class="flip"><div class="flip-inner">
+        <div class="flip-face"><div class="say">${say}</div><div class="file">${kw}</div><div class="hint">↻ tap to flip</div></div>
+        <div class="flip-face flip-back">
+          <div class="lbl">In code</div><p>${code}</p>
+          <div class="lbl">Watch out</div><p>${watch}</p>
+          <div class="lbl">Verify</div><p>${verify}</p>
+        </div>
+      </div></div>`).join("");
+
+    initChapter(9);
+  </script>
+  <script src="../assets/app.js?v=2"></script>
+</body>
+</html>
