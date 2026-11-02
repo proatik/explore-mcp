@@ -1,0 +1,23 @@
+{
+  "name": "woocommerce-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An MCP server and a custom MCP client that let AI applications work with an existing WooCommerce store.",
+  "packageManager": "pnpm@9.10.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev:mock": "pnpm --filter woo-mock dev",
+    "dev:server": "pnpm --filter mcp-server dev",
+    "dev:client": "pnpm --filter mcp-client dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

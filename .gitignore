@@ -1,0 +1,16 @@
+# Logs
+*.log
+
+# Dependencies & build output
+dist/
+coverage/
+node_modules/
+
+# Env
+.env
+
+# OS
+.DS_Store
+
+# Internal docs
+/docs/
