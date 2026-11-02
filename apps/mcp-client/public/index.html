@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WooCommerce Agent</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">◆</span>
+        <span>WooCommerce Agent</span>
+      </div>
+      <div class="status" id="status">Connecting…</div>
+    </header>
+
+    <main class="layout">
+      <section class="chat" aria-label="Conversation">
+        <div class="banner" id="banner" hidden></div>
+
+        <ol class="log" id="log" aria-live="polite">
+          <li class="welcome">
+            <h1>Ask about your store</h1>
+            <p>
+              The agent reads products, orders and stock through MCP. Anything
+              that changes the store waits for your approval here.
+            </p>
+            <div class="suggestions" id="suggestions">
+              <button type="button">
+                Which products have 5 or fewer units left?
+              </button>
+              <button type="button">
+                Summarise the orders that are on hold.
+              </button>
+              <button type="button">
+                We received 24 beeswax candles. Update the stock.
+              </button>
+            </div>
+          </li>
+        </ol>
+
+        <form class="composer" id="composer">
+          <textarea
+            id="input"
+            rows="1"
+            placeholder="Message the agent…"
+            aria-label="Message"
+          ></textarea>
+          <button type="submit" id="send">Send</button>
+        </form>
+      </section>
+
+      <aside class="panel" aria-label="Connected tools">
+        <h2>Tools</h2>
+        <p class="hint">
+          Discovered from the MCP server. The badge shows when a person must
+          approve.
+        </p>
+        <ul class="tools" id="tools"></ul>
+        <button type="button" class="ghost" id="refresh">
+          Reconnect servers
+        </button>
+      </aside>
+    </main>
+
+    <template id="approval-template">
+      <li class="approval">
+        <div class="approval-head"></div>
+        <dl class="approval-args"></dl>
+        <label class="approval-confirm" hidden>
+          <span></span>
+          <input type="text" autocomplete="off" />
+        </label>
+        <div class="approval-actions">
+          <button type="button" class="approve">Approve</button>
+          <button type="button" class="ghost decline">Decline</button>
+        </div>
+      </li>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
