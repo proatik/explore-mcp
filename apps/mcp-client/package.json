@@ -1,0 +1,34 @@
+{
+  "name": "mcp-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP client and AI agent host built with NestJS: discovery, LLM orchestration, human approval and a chat page.",
+  "files": [
+    "dist",
+    "public"
+  ],
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/core": "^12.3.2",
+    "@nestjs/platform-express": "^12.3.2",
+    "@woocommerce-mcp/shared": "workspace:*",
+    "openai": "^7.47.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.11",
+    "@types/express": "^5.0.6",
+    "mcp-server": "workspace:*",
+    "woo-mock": "workspace:*"
+  }
+}
